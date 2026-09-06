@@ -77,7 +77,13 @@ const credentialLimiter = rateLimit({
 const VERIFY_TTL_MIN = 60 * 24;
 const RESET_TTL_MIN = 60;
 
-const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+// Simple email validation — we verify ownership via link/code, so strict RFC compliance isn't needed.
+// Avoids ReDoS vulnerabilities by using a basic check: non-empty, contains @, and ends with domain.
+const isValidEmail = (email: string): boolean => {
+  if (!email || email.length > 254) return false;
+  const parts = email.split("@");
+  return parts.length === 2 && parts[0].length > 0 && parts[1].includes(".") && parts[1].length > 2;
+};
 
 function normalizeEmail(v: unknown): string {
   return typeof v === "string" ? v.trim().toLowerCase() : "";
@@ -161,7 +167,7 @@ authRouter.post(
     const clientIp = getClientIp(req);
     const userAgent = getUserAgent(req);
 
-    if (!EMAIL_RE.test(email)) {
+    if (!isValidEmail(email)) {
       await logAuthEvent({
         eventType: "register",
         result: "failed",
@@ -283,7 +289,7 @@ authRouter.post(
     const clientIp = getClientIp(req);
     const userAgent = getUserAgent(req);
 
-    if (!EMAIL_RE.test(email)) {
+    if (!isValidEmail(email)) {
       // Log invalid email for audit, but never disclose it
       await logAuthEvent({
         eventType: "password-reset-request",
@@ -797,7 +803,7 @@ authRouter.post(
     const clientIp = getClientIp(req);
     const userAgent = getUserAgent(req);
 
-    if (!EMAIL_RE.test(email)) {
+    if (!isValidEmail(email)) {
       await logAuthEvent({
         eventType: "passwordless-signin-request",
         result: "failed",
