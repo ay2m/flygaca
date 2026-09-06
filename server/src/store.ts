@@ -70,32 +70,32 @@ export async function createUser(input: {
 }): Promise<UserRow> {
   const row = input.id
     ? await queryOne<UserRow>(
-        `INSERT INTO users (id, email, password_hash, display_name, google_sub, apple_sub, email_verified)
+      `INSERT INTO users (id, email, password_hash, display_name, google_sub, apple_sub, email_verified)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
          RETURNING *`,
-        [
-          input.id,
-          input.email,
-          input.passwordHash ?? null,
-          input.displayName ?? "",
-          input.googleSub ?? null,
-          input.appleSub ?? null,
-          input.emailVerified ?? false,
-        ],
-      )
+      [
+        input.id,
+        input.email,
+        input.passwordHash ?? null,
+        input.displayName ?? "",
+        input.googleSub ?? null,
+        input.appleSub ?? null,
+        input.emailVerified ?? false,
+      ],
+    )
     : await queryOne<UserRow>(
-        `INSERT INTO users (email, password_hash, display_name, google_sub, apple_sub, email_verified)
+      `INSERT INTO users (email, password_hash, display_name, google_sub, apple_sub, email_verified)
          VALUES ($1, $2, $3, $4, $5, $6)
          RETURNING *`,
-        [
-          input.email,
-          input.passwordHash ?? null,
-          input.displayName ?? "",
-          input.googleSub ?? null,
-          input.appleSub ?? null,
-          input.emailVerified ?? false,
-        ],
-      );
+      [
+        input.email,
+        input.passwordHash ?? null,
+        input.displayName ?? "",
+        input.googleSub ?? null,
+        input.appleSub ?? null,
+        input.emailVerified ?? false,
+      ],
+    );
   if (!row) throw new Error("createUser: insert returned no row");
   await query("INSERT INTO profiles (user_id) VALUES ($1) ON CONFLICT DO NOTHING", [row.id]);
   return row;
