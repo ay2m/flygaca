@@ -1,15 +1,14 @@
 {
   "buildCommand": "npm run build && npm --prefix server run build",
   "outputDirectory": "dist",
-  "cleanUrls": true,
-  "framework": "vite",
+  "framework": null,
   "rewrites": [
     {
       "source": "/api/(.*)",
       "destination": "/api"
     },
     {
-      "source": "/(.*)",
+      "source": "/((?!api/|api$|assets/|data/|img/|manifest.webmanifest|sw.js|workbox-.*|favicon.ico|apple-touch-icon.png|og.png|sitemap.xml|robots.txt).*)",
       "destination": "/index.html"
     }
   ],
