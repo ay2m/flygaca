@@ -1,6 +1,8 @@
 import { useTranslation } from 'react-i18next';
+import { useSearchParams } from 'react-router';
 import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
+import { Alert } from '@/components/Alert';
 import { CaptainAvatar } from '@/components/CaptainAvatar';
 import { BrandMark } from '@/components/BrandMark';
 import { Disclaimer } from '@/components/Disclaimer';
@@ -17,7 +19,25 @@ import styles from './AccountPage.module.css';
  */
 export function AccountSignedOut() {
   const { t } = useTranslation();
+  const [searchParams] = useSearchParams();
   const authReady = isAuthAvailable() || isSupabaseAuthAvailable();
+
+  const authError = searchParams.get('auth_error');
+  const signinStatus = searchParams.get('signin');
+
+  const bannerAlert = authError === 'operation-not-allowed' ? (
+    <Alert tone="error" role="alert" icon="⚠">
+      {t('account.errors.providerDisabled')}
+    </Alert>
+  ) : signinStatus === 'failed' || signinStatus === 'invalid' ? (
+    <Alert tone="error" role="alert" icon="⚠">
+      {t('account.authError')}
+    </Alert>
+  ) : signinStatus === 'link-blocked' ? (
+    <Alert tone="warning" role="alert" icon="⚠">
+      {t('account.errors.emailInUse')}
+    </Alert>
+  ) : null;
 
   return (
     <section className={`container ${styles.splitScreenPage}`}>
@@ -37,13 +57,13 @@ export function AccountSignedOut() {
             <p className={styles.authIntro}>{t('account.signInIntro')}</p>
           </div>
 
+          {bannerAlert}
+
           <Card variant="raised" className={`${styles.authCard} card-clay`}>
             {authReady ? (
               <BackendSignIn />
-            ) : import.meta.env.DEV ? (
-              <LocalSignIn />
             ) : (
-              <AuthUnavailable />
+              <LocalSignIn />
             )}
           </Card>
 

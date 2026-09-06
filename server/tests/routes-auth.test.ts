@@ -94,6 +94,7 @@ vi.mock("../src/mail.js", () => ({
   sendPasswordlessSigninEmail: (...a: unknown[]) => sendPasswordlessSigninEmail(...a),
 }));
 
+const { config } = await import("../src/config.js");
 const { authRouter } = await import("../src/routes/auth.js");
 const { errorMiddleware } = await import("../src/http.js");
 const { hashPassword, hashToken } = await import("../src/session.js");
@@ -480,6 +481,14 @@ describe("GET /google/start", () => {
       expect(returnTo).toBe("https://flygaca.com");
     }
   });
+
+  it("redirects back with auth_error when Google OAuth client ID is not configured", async () => {
+    config.google.clientId = "";
+    const res = await request(app).get("/api/auth/google/start?returnTo=/account");
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain("auth_error=operation-not-allowed");
+    config.google.clientId = "google-client-id";
+  });
 });
 
 describe("GET /google/callback", () => {
@@ -612,6 +621,14 @@ describe("GET /apple/start", () => {
       const [, returnTo] = createOAuthState.mock.calls[0] as [string, string];
       expect(returnTo).toBe("https://flygaca.com");
     }
+  });
+
+  it("redirects back with auth_error when Apple OAuth client ID is not configured", async () => {
+    config.apple.clientId = "";
+    const res = await request(app).get("/api/auth/apple/start?returnTo=/account");
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toContain("auth_error=operation-not-allowed");
+    config.apple.clientId = "apple-client-id";
   });
 });
 

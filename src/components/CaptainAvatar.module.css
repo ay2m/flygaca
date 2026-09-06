@@ -2,6 +2,7 @@
   flex-shrink: 0;
   border-radius: 50%;
   object-fit: cover;
+  object-position: center 20%;
   /* A warm fallback while the PNG decodes; the Falcon gradient reads as "him". */
   background: var(--grad-brand);
   border: 2px solid color-mix(in srgb, var(--brand) 55%, transparent);

@@ -410,6 +410,47 @@ CREATE INDEX IF NOT EXISTS passwordless_tokens_user_idx ON passwordless_tokens (
 CREATE INDEX IF NOT EXISTS passwordless_tokens_expires_idx ON passwordless_tokens (expires_at) WHERE used_at IS NULL;
 `,
   },
+  {
+    name: "0006_supabase_auth_sync.sql",
+    sql: `
+ALTER TABLE public.profiles ADD COLUMN IF NOT EXISTS avatar_url text DEFAULT '';
+
+CREATE OR REPLACE FUNCTION public.handle_new_auth_user()
+RETURNS trigger
+LANGUAGE plpgsql
+SECURITY DEFINER
+SET search_path = public
+AS $$
+BEGIN
+  INSERT INTO public.users (id, email, display_name, email_verified)
+  VALUES (
+    new.id,
+    new.email,
+    COALESCE(new.raw_user_meta_data->>'displayName', new.raw_user_meta_data->>'full_name', new.raw_user_meta_data->>'name', ''),
+    (new.email_confirmed_at IS NOT NULL)
+  )
+  ON CONFLICT (id) DO UPDATE
+    SET email = EXCLUDED.email,
+        display_name = CASE WHEN public.users.display_name = '' THEN EXCLUDED.display_name ELSE public.users.display_name END,
+        email_verified = public.users.email_verified OR EXCLUDED.email_verified,
+        updated_at = now();
+
+  INSERT INTO public.profiles (user_id, role, avatar_url)
+  VALUES (
+    new.id,
+    COALESCE(new.raw_user_meta_data->>'role', ''),
+    COALESCE(new.raw_user_meta_data->>'avatar_url', new.raw_user_meta_data->>'picture', '')
+  )
+  ON CONFLICT (user_id) DO UPDATE
+    SET avatar_url = CASE WHEN public.profiles.avatar_url = '' OR public.profiles.avatar_url IS NULL THEN EXCLUDED.avatar_url ELSE public.profiles.avatar_url END,
+        role = CASE WHEN public.profiles.role = '' OR public.profiles.role IS NULL THEN EXCLUDED.role ELSE public.profiles.role END,
+        updated_at = now();
+
+  RETURN new;
+END;
+$$;
+`,
+  },
 ];
 
 export async function runMigrations(): Promise<{

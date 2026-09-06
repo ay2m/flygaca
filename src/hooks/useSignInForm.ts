@@ -176,7 +176,7 @@ export function useSignInForm(): SignInForm {
   });
 
   const signupForm = useForm({
-    initialValues: { name: '', email: '', password: '', confirmPassword: '', role: 'pilot' },
+    initialValues: { name: '', email: '', password: '', confirmPassword: '', role: '' },
     validate: (values) => {
       const errs: FieldErrors & { confirmPassword?: string } = {};
       if (!values.name.trim()) {
@@ -200,12 +200,18 @@ export function useSignInForm(): SignInForm {
     onSubmit: async (values) => {
       await run(
         () =>
-          registerWithEmail(
-            values.email.trim(),
-            values.password,
-            values.name.trim() || undefined,
-            values.role || undefined,
-          ),
+          values.role
+            ? registerWithEmail(
+                values.email.trim(),
+                values.password,
+                values.name.trim() || undefined,
+                values.role,
+              )
+            : registerWithEmail(
+                values.email.trim(),
+                values.password,
+                values.name.trim() || undefined,
+              ),
         signupForm.setErrors,
       );
     },

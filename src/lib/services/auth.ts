@@ -265,7 +265,6 @@ export async function signInWithOAuthProvider(
   provider: AuthOAuthProvider,
   redirectTo?: string,
 ): Promise<void> {
-  requireBackend();
   if (isSupabaseConfigured()) {
     await supabaseSignInWithOAuth({ provider, redirectTo });
     return;
@@ -278,6 +277,7 @@ export async function signInWithOAuthProvider(
     await signInWithApple();
     return;
   }
+  requireBackend();
   throw new ApiError('auth/operation-not-allowed', 400);
 }
 
@@ -293,7 +293,7 @@ export async function signInWithMagicLink(email: string): Promise<void> {
     }
   }
   // If only backend is configured, send passwordless email request
-  await apiFetch<unknown>('/auth/passwordless/start', {
+  await apiFetch<unknown>('/auth/passwordless/request', {
     method: 'POST',
     body: { email },
   });

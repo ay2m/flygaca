@@ -13,10 +13,10 @@ const sizeClass: Record<AvatarSize, string> = {
 };
 
 const poseSrc: Record<Exclude<AvatarPose, 'default'>, string> = {
-  wave: '/img/captain/wave-256.png',
-  thinking: '/img/captain/thinking-256.png',
-  hold: '/img/captain/hold-256.png',
-  smile: '/img/captain/smile-256.png',
+  wave: '/img/captain-adel.jpg',
+  thinking: '/img/captain-adel.jpg',
+  hold: '/img/captain-adel.jpg',
+  smile: '/img/captain-adel.jpg',
 };
 
 interface CaptainAvatarProps {
@@ -38,16 +38,16 @@ interface CaptainAvatarProps {
   animated?: boolean;
   /** Decorative use (label already supplied by adjacent text) hides it from AT. */
   decorative?: boolean;
+  /** Custom image source override (e.g., custom pilot avatar). */
+  src?: string;
   className?: string;
 }
 
 /**
  * Captain Adel's portrait — the one place his face is wired in, so every surface
- * (chat welcome, each reply, the home hero) draws from the same official art.
- * `pose` swaps in a generated expression (wave/thinking/hold/smile) for stateful
- * surfaces; `default` uses the canonical neutral portrait (256px inline, the full
- * 500px render at hero sizes). All ship under `public/img/captain/`. The brand
- * ring is token-driven and the glow honours reduced-motion via CSS.
+ * (chat welcome, each reply, the home hero, account) draws from the same official art.
+ * All poses map to the canonical realistic portrait (/img/captain-adel.jpg).
+ * The brand ring is token-driven and the glow honours reduced-motion via CSS.
  */
 export function CaptainAvatar({
   size = 'md',
@@ -56,11 +56,12 @@ export function CaptainAvatar({
   live = false,
   animated: _animated = false,
   decorative = false,
+  src: customSrc,
   className,
 }: CaptainAvatarProps) {
   const { t } = useTranslation();
 
-  const stillSrc = pose !== 'default' ? poseSrc[pose] : '/img/captain-adel.jpg';
+  const stillSrc = customSrc || (pose !== 'default' ? poseSrc[pose] : '/img/captain-adel.jpg');
 
   // Disable the cartoon animated idle loop for the new realistic portrait
   const playLoop = false;

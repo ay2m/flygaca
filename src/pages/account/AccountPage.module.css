@@ -468,6 +468,13 @@
   gap: var(--space-5);
 }
 
+.avatarCommandBezel {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
 .avatarRing {
   position: relative;
   display: inline-flex;
@@ -475,17 +482,55 @@
   justify-content: center;
   padding: 4px;
   border-radius: var(--radius-pill);
-  background: linear-gradient(135deg, var(--brand), var(--accent));
-  box-shadow: 0 0 20px rgba(45, 110, 138, 0.4);
+  background: linear-gradient(135deg, var(--falcon-gold, #c8a04a) 0%, var(--brand, #2d6e8a) 100%);
+  box-shadow: 0 0 24px rgba(200, 160, 74, 0.35), 0 4px 14px rgba(0, 0, 0, 0.4);
+  transition: transform 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+
+.avatarCommandBezel:hover .avatarRing {
+  transform: scale(1.03);
+  box-shadow: 0 0 30px rgba(200, 160, 74, 0.5), 0 6px 18px rgba(0, 0, 0, 0.5);
+}
+
+.avatarEditOverlayBtn {
+  position: absolute;
+  inset-block-end: -2px;
+  inset-inline-end: -2px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised, #13212e);
+  border: 1.5px solid var(--falcon-gold, #c8a04a);
+  color: var(--falcon-gold, #c8a04a);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-sm);
+  transition: all 0.2s ease;
+  z-index: 3;
+}
+
+.avatarEditOverlayBtn:hover {
+  background: var(--falcon-gold, #c8a04a);
+  color: var(--falcon-night, #0a0e12);
+  transform: scale(1.12);
 }
 
 .pilotIdentity {
   display: flex;
   flex-direction: column;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
-.pilotIdentity h1 {
+.pilotNameRow {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pilotNameRow h1 {
   margin: 0;
   font-size: var(--fs-h2);
   background: var(--grad-title);
@@ -495,6 +540,41 @@
   display: flex;
   align-items: center;
   gap: var(--space-2);
+  letter-spacing: var(--tracking-tight);
+}
+
+.pilotRankBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  align-self: flex-start;
+  padding: 3px var(--space-3);
+  background: color-mix(in srgb, var(--falcon-deep) 90%, var(--falcon-gold) 10%);
+  border: 1px solid color-mix(in srgb, var(--falcon-gold) 35%, transparent);
+  border-radius: var(--radius-pill);
+}
+
+.epauletteStripes {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+
+.goldStripe {
+  width: 3px;
+  height: 12px;
+  border-radius: 1px;
+  background: linear-gradient(to bottom, #ffe49e, #c8a04a);
+  box-shadow: 0 0 4px rgba(200, 160, 74, 0.6);
+}
+
+.rankTitle {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+  color: var(--falcon-gold, #c8a04a);
 }
 
 .pilotMetaRow {
@@ -504,6 +584,24 @@
   gap: var(--space-3);
   font-size: var(--fs-sm);
   color: var(--text-muted);
+}
+
+.airportPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--text);
+  background: var(--surface-raised);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+}
+
+.pilotEmailText {
+  color: var(--text-muted);
+  font-size: var(--fs-sm);
 }
 
 .planTierTag {
@@ -978,4 +1076,641 @@
   flex-direction: column;
   gap: var(--space-4);
 }
+
+/* ── GACA Flight Readiness Radar Card ── */
+.radarCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  background: linear-gradient(135deg, rgba(15, 26, 36, 0.95) 0%, rgba(10, 14, 18, 0.95) 100%);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, var(--border));
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-card);
+  backdrop-filter: blur(16px);
+}
+
+.radarHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.radarTitleGroup {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  flex-wrap: wrap;
+}
+
+.radarHeading {
+  margin: 0;
+  font-size: var(--fs-h3);
+  color: var(--text);
+  letter-spacing: var(--tracking-tight);
+}
+
+.radarStatusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px var(--space-3);
+  border-radius: var(--radius-pill);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  background: var(--color-success-bg, rgba(46, 125, 50, 0.15));
+  border: 1px solid var(--color-success, #2e7d32);
+  color: var(--color-success, #2e7d32);
+}
+
+.radarStatusPill[data-ready='false'] {
+  background: var(--color-warning-bg, rgba(230, 81, 0, 0.15));
+  border-color: var(--warning, #e65100);
+  color: var(--warning, #e65100);
+}
+
+.radarLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--brand-hover);
+  text-decoration: none;
+  padding: 4px var(--space-2);
+  border-radius: var(--radius-sm);
+  transition: all 0.2s ease;
+}
+
+.radarLink:hover {
+  background: color-mix(in srgb, var(--brand) 12%, transparent);
+  transform: translateX(2px);
+}
+
+.radarGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+}
+
+@media (max-width: 840px) {
+  .radarGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.radarMetricTile {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  text-decoration: none;
+  color: var(--text);
+  transition: var(--transition-interactive);
+}
+
+.radarMetricTile:hover {
+  transform: translateY(-2px);
+  border-color: var(--brand);
+  background: var(--surface-raised);
+}
+
+.radarMetricHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-2);
+}
+
+.radarMetricLabel {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+.radarBadge {
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-bold);
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+}
+
+.radarBadge[data-tone='good'] {
+  background: var(--color-success-bg, rgba(46, 125, 50, 0.15));
+  color: var(--color-success, #2e7d32);
+}
+
+.radarBadge[data-tone='warn'] {
+  background: var(--color-warning-bg, rgba(230, 81, 0, 0.15));
+  color: var(--warning, #e65100);
+}
+
+.radarBadge[data-tone='bad'] {
+  background: var(--color-error-bg, rgba(198, 40, 40, 0.15));
+  color: var(--color-error, #c62828);
+}
+
+.radarBadge[data-tone='neutral'] {
+  background: var(--surface-sunken);
+  color: var(--text-dim);
+}
+
+.radarMetricSub {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+}
+
+/* ── Bento Stats Extras ── */
+.bentoStatNumRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.quickAddLink {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-semibold);
+  color: var(--brand-hover);
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: color-mix(in srgb, var(--brand) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+  transition: all 0.2s ease;
+}
+
+.quickAddLink:hover {
+  background: var(--brand);
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+.bentoSubMetrics {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  padding-top: var(--space-1);
+  border-top: 1px solid var(--border);
+}
+
+.adelCreditsHeroRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quickAskBar {
+  position: relative;
+  display: flex;
+  align-items: center;
+  margin-top: var(--space-1);
+}
+
+.quickAskInput {
+  width: 100%;
+  padding: 6px 32px 6px 10px;
+  font-size: var(--fs-xs);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.quickAskInput:focus {
+  border-color: var(--brand);
+}
+
+.quickAskBtn {
+  position: absolute;
+  inset-inline-end: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  background: var(--brand);
+  color: #fff;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.2s ease;
+}
+
+.quickAskBtn:hover {
+  background: var(--brand-hover);
+}
+
+.quickTileIconWrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 42px;
+  height: 42px;
+  border-radius: var(--radius-md);
+  background: color-mix(in srgb, var(--brand) 16%, transparent);
+  color: var(--brand-hover);
+  flex-shrink: 0;
+}
+
+.quickTileDesc {
+  display: block;
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  font-weight: var(--fw-regular);
+}
+
+/* ── Pilot Dossier Stack ── */
+.dossierStack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  max-width: 820px;
+}
+
+.dossierDeckHead {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+}
+
+.dossierCard {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  padding: var(--space-6);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-xl);
+  box-shadow: var(--shadow-sm);
+}
+
+.dossierSectionTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  border-bottom: 1px solid var(--border);
+  padding-bottom: var(--space-3);
+}
+
+.dossierSectionTitle h3 {
+  margin: 0;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-bold);
+  color: var(--text);
+  letter-spacing: var(--tracking-tight);
+}
+
+.avatarDossierRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: var(--space-4);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+.avatarDossierLeft {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.avatarRingDossier {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--falcon-gold) 0%, var(--brand) 100%);
+  box-shadow: 0 0 16px rgba(200, 160, 74, 0.3);
+}
+
+.dossierAvatarBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: var(--space-2) var(--space-4);
+  background: var(--surface-raised);
+  border: 1px solid var(--border-bright);
+  border-radius: var(--radius-md);
+  color: var(--text);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dossierAvatarBtn:hover {
+  border-color: var(--falcon-gold);
+  color: var(--falcon-gold);
+  transform: translateY(-1px);
+}
+
+.fieldsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-4);
+}
+
+@media (max-width: 640px) {
+  .fieldsGrid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.airportResolvedBadge {
+  margin-top: 6px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  color: var(--brand-hover);
+}
+
+.airportChipsSection {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.airportChipsLabel {
+  font-size: var(--fs-xs);
+  color: var(--text-dim);
+  font-weight: var(--fw-semibold);
+  text-transform: uppercase;
+  letter-spacing: var(--tracking-caps);
+}
+
+.airportChipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+}
+
+.airportChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  font-size: var(--fs-xs);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.airportChip strong {
+  font-family: var(--font-mono);
+  color: var(--text);
+}
+
+.airportChip:hover {
+  border-color: var(--brand);
+  color: var(--text);
+  background: var(--surface-raised);
+  transform: translateY(-1px);
+}
+
+.airportChipActive {
+  background: color-mix(in srgb, var(--brand) 25%, transparent);
+  border-color: var(--brand);
+  color: var(--brand-hover);
+}
+
+.airportChipActive strong {
+  color: var(--brand-hover);
+}
+
+/* ── Avatar Customizer Modal ── */
+.modalBackdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-4);
+  z-index: 999;
+}
+
+.avatarModal {
+  width: 100%;
+  max-width: 520px;
+  background: linear-gradient(135deg, rgba(20, 32, 44, 0.98) 0%, rgba(10, 14, 18, 0.98) 100%);
+  border: 1px solid color-mix(in srgb, var(--falcon-gold) 40%, var(--border));
+  border-radius: var(--radius-2xl);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.6), 0 0 30px rgba(200, 160, 74, 0.2);
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  overflow: hidden;
+}
+
+.modalHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.modalHeaderTitle {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.modalCloseBtn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.modalCloseBtn:hover {
+  color: var(--text);
+  border-color: var(--border-bright);
+}
+
+.avatarPreviewCenter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-4);
+  background: var(--surface-sunken);
+  border-radius: var(--radius-xl);
+  border: 1px solid var(--border);
+}
+
+.avatarPreviewFrame {
+  padding: 4px;
+  border-radius: var(--radius-pill);
+  background: linear-gradient(135deg, var(--falcon-gold) 0%, var(--brand) 100%);
+  box-shadow: 0 0 20px rgba(200, 160, 74, 0.35);
+}
+
+.avatarPreviewLabel {
+  margin: 0;
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-semibold);
+  color: var(--falcon-gold);
+}
+
+.avatarOptionGrid {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.avatarOptionCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-4);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: start;
+}
+
+.avatarOptionCard:hover {
+  border-color: var(--border-bright);
+  background: var(--surface-raised);
+}
+
+.avatarOptionCardActive {
+  border-color: var(--falcon-gold) !important;
+  background: color-mix(in srgb, var(--falcon-gold) 10%, var(--surface)) !important;
+}
+
+.avatarOptionHead {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.avatarOptionIconWrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: var(--radius-pill);
+  background: var(--surface-sunken);
+  color: var(--brand-hover);
+}
+
+.avatarOptionInfo {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.avatarOptionInfo strong {
+  font-size: var(--fs-sm);
+  color: var(--text);
+}
+
+.avatarOptionInfo span {
+  font-size: var(--fs-xs);
+  color: var(--text-muted);
+}
+
+.avatarCheckBadge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: var(--radius-pill);
+  background: var(--falcon-gold);
+  color: var(--falcon-night);
+}
+
+.customPhotoControls {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+
+.customUploadRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.hiddenFileInput {
+  display: none;
+}
+
+.urlInputWrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.urlInputIcon {
+  position: absolute;
+  inset-inline-start: 12px;
+  color: var(--text-dim);
+  pointer-events: none;
+}
+
+.avatarUrlField {
+  width: 100%;
+  padding: 10px 12px 10px 38px;
+  font-size: var(--fs-sm);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-sunken);
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.2s ease;
+}
+
+.avatarUrlField:focus {
+  border-color: var(--falcon-gold);
+}
+
+.modalFooter {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--space-3);
+  padding-top: var(--space-3);
+  border-top: 1px solid var(--border);
+}
+
 

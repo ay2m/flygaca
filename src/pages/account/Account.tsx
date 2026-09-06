@@ -7,22 +7,25 @@ import {
   SignOut,
   ShieldCheck,
   Warning,
-  Sparkle,
   Airplane,
   IdentificationBadge,
   LinkSimple,
   LockKey,
   CreditCard,
+  Camera,
+  PencilSimple,
 } from '@phosphor-icons/react';
 import { Alert } from '@/components/Alert';
 import { Disclaimer } from '@/components/Disclaimer';
 import { CaptainAvatar } from '@/components/CaptainAvatar';
 import { StatusPill } from '@/components/StatusPill';
 import { Button, ButtonLink } from '@/components/ui/Button';
-import { refreshAccount, signOut, useAccount } from '@/lib/services/account';
+import { refreshAccount, signOut, useAccount, saveProfile } from '@/lib/services/account';
 import { uiPlan } from '@/lib/services/entitlements';
 import { isAuthAvailable, isSupabaseAuthAvailable, resendEmailVerification, getCurrentUser, type AuthUser } from '@/lib/services/auth';
 import { useNoindexMeta } from '@/hooks/usePageMeta';
+import { getAirportLabel, getPilotRank } from './aviationMeta';
+import { AvatarCustomizerModal } from './AvatarCustomizerModal';
 import { AccountSignedOut } from './AccountSignedOut';
 import { AccountOverviewTab } from './AccountOverviewTab';
 import { AccountDossierTab } from './AccountDossierTab';
@@ -53,6 +56,7 @@ export function Account() {
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
   const [resendBusy, setResendBusy] = useState(false);
   const [resendSent, setResendSent] = useState(false);
+  const [avatarModalOpen, setAvatarModalOpen] = useState(false);
 
   useEffect(() => {
     void getCurrentUser().then(setCurrentUser);
@@ -101,6 +105,9 @@ export function Account() {
 
   const pilotName = profile.displayName || currentUser?.displayName || profile.email || 'Pilot';
   const roleLabel = profile.role ? t(`account.roles.${profile.role}`, { defaultValue: profile.role }) : 'Pilot';
+  const airportBadge = getAirportLabel(profile.homeBase);
+  const rankInfo = getPilotRank(profile.role, profile.licenceType);
+  const effectiveAvatarSrc = profile.avatarUrl || currentUser?.avatarUrl || '/img/captain-adel.jpg';
 
   return (
     <section className={`container ${styles.hubContainer}`}>
@@ -112,23 +119,56 @@ export function Account() {
         transition={{ duration: 0.3 }}
       >
         <div className={styles.heroLeft}>
-          <div className={styles.avatarRing}>
-            <CaptainAvatar size="lg" pose="smile" glow live decorative />
+          {/* Avatar with Command Bezel & Change Avatar Trigger */}
+          <div className={styles.avatarCommandBezel}>
+            <div className={styles.avatarRing}>
+              <CaptainAvatar
+                size="lg"
+                src={effectiveAvatarSrc}
+                glow
+                live
+                decorative
+              />
+            </div>
+
+            <button
+              type="button"
+              className={styles.avatarEditOverlayBtn}
+              onClick={() => setAvatarModalOpen(true)}
+              title={t('account.changeAvatar')}
+              aria-label={t('account.changeAvatar')}
+            >
+              <Camera size={16} weight="fill" />
+            </button>
           </div>
 
           <div className={styles.pilotIdentity}>
-            <h1>
-              <span>{pilotName}</span>
+            <div className={styles.pilotNameRow}>
+              <h1>
+                <span>{pilotName}</span>
+              </h1>
               <span className={styles.planTierTag} data-plan={plan}>
                 {t(`account.plan.${plan}`)}
               </span>
-            </h1>
+            </div>
+
+            {/* Pilot Rank & Epaulettes Badge */}
+            <div className={styles.pilotRankBadge}>
+              <div className={styles.epauletteStripes}>
+                {Array.from({ length: rankInfo.stripes }).map((_, i) => (
+                  <span key={i} className={styles.goldStripe} />
+                ))}
+              </div>
+              <span className={styles.rankTitle}>
+                {t(rankInfo.titleKey, { defaultValue: rankInfo.fallbackTitle })}
+              </span>
+            </div>
 
             <div className={styles.pilotMetaRow}>
               <span>✈️ {roleLabel}</span>
-              {profile.homeBase && <span>📍 {profile.homeBase}</span>}
+              {airportBadge && <span className={styles.airportPill}>📍 {airportBadge}</span>}
               <span>•</span>
-              <span>{profile.email || currentUser?.email}</span>
+              <span className={styles.pilotEmailText}>{profile.email || currentUser?.email}</span>
 
               {/* Email verified status indicator */}
               {(isAuthAvailable() || isSupabaseAuthAvailable()) && (
@@ -164,6 +204,14 @@ export function Account() {
         </div>
 
         <div className={styles.heroActions}>
+          <Button
+            type="button"
+            variant="clay"
+            icon={<PencilSimple size={16} />}
+            onClick={() => switchTab('dossier')}
+          >
+            {t('account.editDossier')}
+          </Button>
           <ButtonLink to="/settings" variant="clay" icon={<Gear size={16} />}>
             {t('account.settings')}
           </ButtonLink>
@@ -313,6 +361,14 @@ export function Account() {
       </AnimatePresence>
 
       <Disclaimer compact />
+
+      {/* Avatar Customizer Modal */}
+      <AvatarCustomizerModal
+        isOpen={avatarModalOpen}
+        currentAvatarUrl={profile.avatarUrl}
+        onClose={() => setAvatarModalOpen(false)}
+        onSave={(avatarUrl) => saveProfile({ avatarUrl })}
+      />
     </section>
   );
 }
