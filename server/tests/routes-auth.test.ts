@@ -19,6 +19,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import express from "express";
 import request from "supertest";
 
+// Skip rate limiter in tests before modules are imported
+process.env.SKIP_RATE_LIMIT_IN_TESTS = "true";
 process.env.SESSION_SECRET = "test-session-secret";
 process.env.APP_ORIGIN = "https://flygaca.com";
 process.env.API_ORIGIN = "https://api.flygaca.com";
@@ -26,12 +28,6 @@ process.env.GOOGLE_OAUTH_CLIENT_ID = "google-client-id";
 process.env.GOOGLE_OAUTH_CLIENT_SECRET = "google-client-secret";
 process.env.APPLE_OAUTH_CLIENT_ID = "apple-client-id";
 process.env.APPLE_OAUTH_CLIENT_SECRET = "apple-client-secret";
-
-// A 20-per-15-minutes brute-force guard; passthrough so it does not throttle
-// the suite. Its configuration is declarative third-party middleware.
-vi.mock("express-rate-limit", () => ({
-  default: () => (_q: unknown, _s: unknown, n: () => void) => n(),
-}));
 
 const createUser = vi.fn();
 const findUserByEmail = vi.fn();
@@ -45,8 +41,17 @@ const createOAuthState = vi.fn();
 const consumeOAuthState = vi.fn();
 const setEmailVerified = vi.fn();
 const setPasswordHash = vi.fn();
+const logAuthEvent = vi.fn();
+const recordAuthFailure = vi.fn();
+const isAccountLocked = vi.fn();
+const recordLastLogin = vi.fn();
+const createPasswordlessToken = vi.fn();
+const consumePasswordlessToken = vi.fn();
+const consumePasswordlessCode = vi.fn();
+const getPendingPasswordlessToken = vi.fn();
 const sendVerificationEmail = vi.fn();
 const sendPasswordResetEmail = vi.fn();
+const sendPasswordlessSigninEmail = vi.fn();
 
 vi.mock("../src/store.js", () => ({
   createUser: (...a: unknown[]) => createUser(...a),
@@ -74,10 +79,19 @@ vi.mock("../src/store.js", () => ({
     emailVerified: row.email_verified ?? false,
     createdAtMs: row.created_at?.getTime() ?? 0,
   }),
+  logAuthEvent: (...a: unknown[]) => logAuthEvent(...a),
+  recordAuthFailure: (...a: unknown[]) => recordAuthFailure(...a),
+  isAccountLocked: (...a: unknown[]) => isAccountLocked(...a),
+  recordLastLogin: (...a: unknown[]) => recordLastLogin(...a),
+  createPasswordlessToken: (...a: unknown[]) => createPasswordlessToken(...a),
+  consumePasswordlessToken: (...a: unknown[]) => consumePasswordlessToken(...a),
+  consumePasswordlessCode: (...a: unknown[]) => consumePasswordlessCode(...a),
+  getPendingPasswordlessToken: (...a: unknown[]) => getPendingPasswordlessToken(...a),
 }));
 vi.mock("../src/mail.js", () => ({
   sendVerificationEmail: (...a: unknown[]) => sendVerificationEmail(...a),
   sendPasswordResetEmail: (...a: unknown[]) => sendPasswordResetEmail(...a),
+  sendPasswordlessSigninEmail: (...a: unknown[]) => sendPasswordlessSigninEmail(...a),
 }));
 
 const { authRouter } = await import("../src/routes/auth.js");
@@ -128,8 +142,17 @@ beforeEach(() => {
   consumeOAuthState.mockResolvedValue(null);
   setEmailVerified.mockResolvedValue(undefined);
   setPasswordHash.mockResolvedValue(undefined);
+  logAuthEvent.mockResolvedValue(undefined);
+  recordAuthFailure.mockResolvedValue(undefined);
+  isAccountLocked.mockResolvedValue(false);
+  recordLastLogin.mockResolvedValue(undefined);
+  createPasswordlessToken.mockResolvedValue(undefined);
+  consumePasswordlessToken.mockResolvedValue(null);
+  consumePasswordlessCode.mockResolvedValue(null);
+  getPendingPasswordlessToken.mockResolvedValue(null);
   sendVerificationEmail.mockResolvedValue(undefined);
   sendPasswordResetEmail.mockResolvedValue(undefined);
+  sendPasswordlessSigninEmail.mockResolvedValue(undefined);
 });
 
 describe("GET /session", () => {
@@ -322,10 +345,11 @@ describe("POST /password-reset", () => {
     expect(sendPasswordResetEmail).not.toHaveBeenCalled();
   });
 
-  it("still rejects a malformed address", async () => {
+  it("answers 200 for a malformed address (anti-enumeration)", async () => {
     const res = await request(app).post("/api/auth/password-reset").send({ email: "nope" });
-    expect(res.status).toBe(400);
-    expect(res.body.error).toBe("auth/invalid-email");
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ ok: true });
+    expect(sendPasswordResetEmail).not.toHaveBeenCalled();
   });
 });
 

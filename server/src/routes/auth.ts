@@ -66,21 +66,27 @@ import { meetsPasswordPolicy } from "../auth-core.js";
 export const authRouter: Router = Router();
 
 /** Brute-force guard on the credential-checking routes. */
-const credentialLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  limit: 20,
-  standardHeaders: "draft-7",
-  legacyHeaders: false,
-  message: { error: "auth/too-many-requests" },
-});
+const skipRateLimit = process.env.SKIP_RATE_LIMIT_IN_TESTS;
+const credentialLimiter = skipRateLimit
+  ? ((_req: any, _res: any, next: any) => {
+      next();
+    }) as any
+  : rateLimit({
+      windowMs: 15 * 60 * 1000,
+      limit: 20,
+      standardHeaders: "draft-7",
+      legacyHeaders: false,
+      message: { error: "auth/too-many-requests" },
+    });
 
 const VERIFY_TTL_MIN = 60 * 24;
 const RESET_TTL_MIN = 60;
 
 // Simple email validation — we verify ownership via link/code, so strict RFC compliance isn't needed.
-// Avoids ReDoS vulnerabilities by using a basic check: non-empty, contains @, and ends with domain.
+// Avoids ReDoS vulnerabilities by using a basic check: no whitespace, contains @, and domain has a dot.
 const isValidEmail = (email: string): boolean => {
   if (!email || email.length > 254) return false;
+  if (email.includes(" ") || email.includes("\t") || email.includes("\n")) return false;
   const parts = email.split("@");
   return parts.length === 2 && parts[0].length > 0 && parts[1].includes(".") && parts[1].length > 2;
 };
