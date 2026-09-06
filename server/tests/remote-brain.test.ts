@@ -211,6 +211,26 @@ describe("askRemote", () => {
     const [, init] = fetchMock.mock.calls[0] as [string, RequestInit];
     expect(init.signal).toBeInstanceOf(AbortSignal);
   });
+
+  it("aborts when the timeout triggers", async () => {
+    vi.useFakeTimers();
+    let aborted = false;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((_url, init: RequestInit) => {
+        init.signal?.addEventListener("abort", () => {
+          aborted = true;
+        });
+        return new Promise(() => {}); // never resolves
+      }),
+    );
+
+    const { askRemote } = await loadRemote();
+    const promise = askRemote({ message: "q" }, { ...cfg, timeoutMs: 100 });
+    vi.advanceTimersByTime(150);
+    expect(aborted).toBe(true);
+    vi.useRealTimers();
+  });
 });
 
 describe("brain seam", () => {

@@ -84,3 +84,18 @@ export async function sendPasswordResetEmail(to: string, token: string): Promise
     text: `Reset your Fly GACA password (expires in 1 hour):\n${href}\n`,
   });
 }
+
+export async function sendPasswordlessSigninEmail(to: string, token: string, code: string): Promise<void> {
+  const href = `${config.appOrigin}/account/signin?token=${encodeURIComponent(token)}`;
+  await send({
+    to,
+    subject: "Sign in to Fly GACA",
+    html: layout(
+      "Your Fly GACA sign-in link",
+      `<p>Click below to sign in to your account. This link expires in 10 minutes.</p>
+       <p><strong>One-time code:</strong> ${code} (if the button doesn't work)</p>`,
+      { href, label: "Sign in" },
+    ),
+    text: `Sign in to Fly GACA (expires in 10 minutes):\n${href}\n\nOne-time code: ${code}\n`,
+  });
+}

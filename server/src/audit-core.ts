@@ -21,7 +21,10 @@ export interface AuthEventLog {
     | "google-link"
     | "apple-link"
     | "oauth-google-signin"
-    | "oauth-apple-signin";
+    | "oauth-apple-signin"
+    | "passwordless-signin-request"
+    | "passwordless-signup-request"
+    | "passwordless-verify";
   result: "success" | "failed" | "blocked";
   reason?: string;
   clientIp?: string;
@@ -103,7 +106,7 @@ export function accountLockedMessage(): string {
  * Parse client IP from request headers, accounting for Cloud Run / Google proxy.
  * When trust proxy is set to 1 (only the last hop), Express.request.ip is correct.
  */
-export function getClientIp(req: any): string | undefined {
+export function getClientIp(req: { ip?: string; connection?: { remoteAddress?: string } }): string | undefined {
   // Express normalizes this when `app.set('trust proxy', 1)` is set
   return req.ip || req.connection?.remoteAddress;
 }
@@ -111,6 +114,6 @@ export function getClientIp(req: any): string | undefined {
 /**
  * Extract user-agent string from request.
  */
-export function getUserAgent(req: any): string | undefined {
+export function getUserAgent(req: { get: (name: string) => string | undefined }): string | undefined {
   return req.get("user-agent");
 }

@@ -47,6 +47,17 @@ const setEmailVerified = vi.fn();
 const setPasswordHash = vi.fn();
 const sendVerificationEmail = vi.fn();
 const sendPasswordResetEmail = vi.fn();
+const sendPasswordlessSigninEmail = vi.fn();
+const logAuthEvent = vi.fn().mockResolvedValue(undefined);
+const recordFailedLogin = vi.fn().mockResolvedValue(undefined);
+const recordAuthFailure = vi.fn().mockResolvedValue({ locked: false, count: 0 });
+const resetFailedLogins = vi.fn().mockResolvedValue(undefined);
+const isAccountLocked = vi.fn().mockResolvedValue(false);
+const recordLastLogin = vi.fn().mockResolvedValue(undefined);
+const createPasswordlessToken = vi.fn().mockResolvedValue(undefined);
+const consumePasswordlessToken = vi.fn().mockResolvedValue(null);
+const consumePasswordlessCode = vi.fn().mockResolvedValue(null);
+const getPendingPasswordlessToken = vi.fn().mockResolvedValue(null);
 
 vi.mock("../src/store.js", () => ({
   createUser: (...a: unknown[]) => createUser(...a),
@@ -61,6 +72,16 @@ vi.mock("../src/store.js", () => ({
   consumeOAuthState: (...a: unknown[]) => consumeOAuthState(...a),
   setEmailVerified: (...a: unknown[]) => setEmailVerified(...a),
   setPasswordHash: (...a: unknown[]) => setPasswordHash(...a),
+  logAuthEvent: (...a: unknown[]) => logAuthEvent(...a),
+  recordFailedLogin: (...a: unknown[]) => recordFailedLogin(...a),
+  recordAuthFailure: (...a: unknown[]) => recordAuthFailure(...a),
+  resetFailedLogins: (...a: unknown[]) => resetFailedLogins(...a),
+  isAccountLocked: (...a: unknown[]) => isAccountLocked(...a),
+  recordLastLogin: (...a: unknown[]) => recordLastLogin(...a),
+  createPasswordlessToken: (...a: unknown[]) => createPasswordlessToken(...a),
+  consumePasswordlessToken: (...a: unknown[]) => consumePasswordlessToken(...a),
+  consumePasswordlessCode: (...a: unknown[]) => consumePasswordlessCode(...a),
+  getPendingPasswordlessToken: (...a: unknown[]) => getPendingPasswordlessToken(...a),
   toAuthedUser: (row: {
     id: string;
     email: string;
@@ -78,6 +99,7 @@ vi.mock("../src/store.js", () => ({
 vi.mock("../src/mail.js", () => ({
   sendVerificationEmail: (...a: unknown[]) => sendVerificationEmail(...a),
   sendPasswordResetEmail: (...a: unknown[]) => sendPasswordResetEmail(...a),
+  sendPasswordlessSigninEmail: (...a: unknown[]) => sendPasswordlessSigninEmail(...a),
 }));
 
 const { authRouter } = await import("../src/routes/auth.js");
@@ -557,6 +579,19 @@ describe("GET /google/callback", () => {
     expect(noEmail.headers.location).toBe("https://flygaca.com/account?signin=failed");
     expect(createUser).not.toHaveBeenCalled();
   });
+
+  it("blocks linking when Google account email does not match unverified existing account", async () => {
+    consumeOAuthState.mockResolvedValue("https://flygaca.com/account");
+    findUserByGoogleSub.mockResolvedValue(null);
+    findUserByEmail.mockResolvedValue(userRow({ email_verified: false, password_hash: null }));
+    stubGoogle({ sub: "g1", email: "cadet@example.com", email_verified: false });
+
+    const res = await request(app).get("/api/auth/google/callback?code=abc&state=s1");
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe("https://flygaca.com/account?signin=link-blocked");
+    expect(linkGoogleAccount).not.toHaveBeenCalled();
+  });
 });
 
 describe("GET /apple/start", () => {
@@ -723,6 +758,31 @@ describe("POST /apple/callback", () => {
     spy.mockRestore();
   });
 
+  it("fails closed when Apple token response has no id_token", async () => {
+    consumeOAuthState.mockResolvedValue("https://flygaca.com/account");
+    vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({ access_token: "at" }),
+    }));
+
+    const res = await request(app)
+      .post("/api/auth/apple/callback")
+      .send({ code: "abc", state: "s1" });
+
+    expect(res.headers.location).toBe("https://flygaca.com/account?signin=failed");
+  });
+
+  it("tolerates unparseable req.body.user in Apple callback", async () => {
+    consumeOAuthState.mockResolvedValue("https://flygaca.com/account");
+    stubApple(idTokenPayload({ sub: "a1", email: "a@b.com" }));
+
+    const res = await request(app)
+      .post("/api/auth/apple/callback")
+      .send({ code: "abc", state: "s1", user: "not-json" });
+
+    expect(res.status).toBe(302);
+  });
+
   it("fails closed when id_token is malformed (wrong part count)", async () => {
     consumeOAuthState.mockResolvedValue("https://flygaca.com/account");
     vi.stubGlobal("fetch", vi.fn().mockResolvedValueOnce({
@@ -772,3 +832,122 @@ describe("POST /apple/callback", () => {
     expect(createUser).not.toHaveBeenCalled();
   });
 });
+
+describe("passwordless authentication routes", () => {
+  it("requests passwordless sign-in for an existing user", async () => {
+    findUserByEmail.mockResolvedValueOnce(userRow({ id: "u1", email: "cadet@example.com" }));
+    getPendingPasswordlessToken.mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post("/api/auth/passwordless/request")
+      .send({ email: "cadet@example.com" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(sendPasswordlessSigninEmail).toHaveBeenCalled();
+    expect(createPasswordlessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "cadet@example.com", purpose: "signin" }),
+    );
+  });
+
+  it("requests passwordless sign-in for a new user (signup)", async () => {
+    findUserByEmail.mockResolvedValueOnce(null);
+    getPendingPasswordlessToken.mockResolvedValueOnce(null);
+
+    const res = await request(app)
+      .post("/api/auth/passwordless/request")
+      .send({ email: "newuser@example.com" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(sendPasswordlessSigninEmail).toHaveBeenCalled();
+    expect(createPasswordlessToken).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "newuser@example.com", purpose: "signup" }),
+    );
+  });
+
+  it("handles an invalid email with standard response (anti-enumeration)", async () => {
+    const res = await request(app)
+      .post("/api/auth/passwordless/request")
+      .send({ email: "not-an-email" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(sendPasswordlessSigninEmail).not.toHaveBeenCalled();
+  });
+
+  it("handles pending token already sent", async () => {
+    getPendingPasswordlessToken.mockResolvedValueOnce({ id: "token1" });
+
+    const res = await request(app)
+      .post("/api/auth/passwordless/request")
+      .send({ email: "cadet@example.com" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.ok).toBe(true);
+    expect(createPasswordlessToken).not.toHaveBeenCalled();
+  });
+
+  it("verifies code successfully for existing user", async () => {
+    consumePasswordlessCode.mockResolvedValueOnce({ userId: "u1", email: "cadet@example.com" });
+    findUserByEmail.mockResolvedValueOnce(userRow({ id: "u1", email: "cadet@example.com" }));
+
+    const res = await request(app)
+      .post("/api/auth/passwordless/verify")
+      .send({ code: "123456" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.uid).toBe("u1");
+    expect(setsSession(res)).toBe(true);
+  });
+
+  it("verifies code and auto-creates account for new user", async () => {
+    consumePasswordlessCode.mockResolvedValueOnce({ userId: null, email: "new@example.com" });
+    createUser.mockResolvedValueOnce(userRow({ id: "u2", email: "new@example.com", email_verified: true }));
+    findUserByEmail.mockResolvedValueOnce(userRow({ id: "u2", email: "new@example.com", email_verified: true }));
+
+    const res = await request(app)
+      .post("/api/auth/passwordless/verify")
+      .send({ code: "123456" });
+
+    expect(res.status).toBe(200);
+    expect(res.body.user.uid).toBe("u2");
+    expect(createUser).toHaveBeenCalledWith(
+      expect.objectContaining({ email: "new@example.com", emailVerified: true }),
+    );
+  });
+
+  it("rejects code verification with missing or invalid code", async () => {
+    const noCode = await request(app).post("/api/auth/passwordless/verify").send({});
+    expect(noCode.status).toBe(400);
+    expect(noCode.body.error).toBe("auth/invalid-action-code");
+
+    consumePasswordlessCode.mockResolvedValueOnce(null);
+    const badCode = await request(app).post("/api/auth/passwordless/verify").send({ code: "000000" });
+    expect(badCode.status).toBe(400);
+    expect(badCode.body.error).toBe("auth/invalid-action-code");
+  });
+
+  it("verifies magic link via GET and redirects", async () => {
+    consumePasswordlessToken.mockResolvedValueOnce("u1");
+
+    const res = await request(app).get("/api/auth/passwordless/verify?token=valid-token");
+
+    expect(res.status).toBe(302);
+    expect(res.headers.location).toBe("https://flygaca.com/account?signin=success");
+    expect(setsSession(res)).toBe(true);
+  });
+
+  it("redirects on invalid or absent magic link", async () => {
+    consumePasswordlessToken.mockResolvedValueOnce(null);
+
+    const bad = await request(app).get("/api/auth/passwordless/verify?token=bad-token");
+    expect(bad.status).toBe(302);
+    expect(bad.headers.location).toBe("https://flygaca.com/account?signin=invalid");
+
+    const none = await request(app).get("/api/auth/passwordless/verify");
+    expect(none.status).toBe(302);
+    expect(none.headers.location).toBe("https://flygaca.com/account?signin=invalid");
+  });
+});
+
