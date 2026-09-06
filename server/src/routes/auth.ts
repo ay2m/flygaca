@@ -115,6 +115,16 @@ async function establishSession(res: Response, userId: string): Promise<void> {
 // ------------------------------------------------------------- session I/O --
 
 authRouter.get(
+  "/config",
+  handler(async (req, res) => {
+    return res.json({
+      google: { configured: !!config.google.clientId },
+      apple: { configured: !!config.apple.clientId },
+    });
+  }),
+);
+
+authRouter.get(
   "/session",
   handler(async (req, res) => {
     if (!req.user) return res.json({ user: null });

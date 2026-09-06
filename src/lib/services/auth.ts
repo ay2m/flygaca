@@ -146,6 +146,31 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
   return fetchSession();
 }
 
+interface AuthConfig {
+  google: { configured: boolean };
+  apple: { configured: boolean };
+}
+
+let authConfigCache: AuthConfig | null = null;
+
+/**
+ * Fetch which OAuth providers are configured on the backend.
+ * Returns {google: {configured: true/false}, apple: {configured: true/false}}
+ */
+export async function getOAuthConfig(): Promise<AuthConfig> {
+  if (authConfigCache) return authConfigCache;
+  if (!isBackendConfigured()) {
+    return { google: { configured: false }, apple: { configured: false } };
+  }
+
+  try {
+    authConfigCache = await apiFetch<AuthConfig>('/auth/config');
+    return authConfigCache;
+  } catch {
+    return { google: { configured: false }, apple: { configured: false } };
+  }
+}
+
 /**
  * The bearer token for the current session, used by the native shell where a
  * cross-origin cookie is unreliable. Returns `null` on web — there the cookie

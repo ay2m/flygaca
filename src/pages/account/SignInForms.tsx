@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import { motion, AnimatePresence } from 'framer-motion';
 import { TextField } from '@/components/calc/TextField';
@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/Button';
 import { signIn } from '@/lib/services/account';
 import { looksLikeEmail } from '@/calc/app/emailShape';
 import { useSignInForm } from '@/hooks/useSignInForm';
+import { getOAuthConfig } from '@/lib/services/auth';
 import { GoogleMark } from './GoogleMark';
 import { AppleMark } from './AppleMark';
 import { GithubMark } from './GithubMark';
@@ -18,6 +19,11 @@ import styles from './AccountPage.module.css';
 
 export function BackendSignIn() {
   const { t } = useTranslation();
+  const [oauthConfig, setOauthConfig] = useState<{ google: { configured: boolean }; apple: { configured: boolean } } | null>(null);
+
+  useEffect(() => {
+    void getOAuthConfig().then(setOauthConfig);
+  }, []);
   const {
     mode,
     animating,
@@ -56,28 +62,32 @@ export function BackendSignIn() {
     <>
       {/* Multi-Provider OAuth Buttons (Google, Apple, GitHub, Discord) */}
       <div className={styles.oauthGrid}>
-        <motion.button
-          type="button"
-          className={styles.oauthBtn}
-          disabled={busy}
-          onClick={runGoogle}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <GoogleMark />
-          <span>Google</span>
-        </motion.button>
-        <motion.button
-          type="button"
-          className={styles.oauthBtn}
-          disabled={busy}
-          onClick={runApple}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <AppleMark />
-          <span>Apple</span>
-        </motion.button>
+        {oauthConfig?.google.configured && (
+          <motion.button
+            type="button"
+            className={styles.oauthBtn}
+            disabled={busy}
+            onClick={runGoogle}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <GoogleMark />
+            <span>Google</span>
+          </motion.button>
+        )}
+        {oauthConfig?.apple.configured && (
+          <motion.button
+            type="button"
+            className={styles.oauthBtn}
+            disabled={busy}
+            onClick={runApple}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <AppleMark />
+            <span>Apple</span>
+          </motion.button>
+        )}
         <motion.button
           type="button"
           className={styles.oauthBtn}
