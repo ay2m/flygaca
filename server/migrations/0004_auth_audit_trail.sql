@@ -10,7 +10,8 @@ CREATE TABLE auth_events (
   event_type  text NOT NULL CHECK (event_type IN (
     'register', 'login', 'logout', 'password-reset-request', 'password-reset-confirm',
     'email-verify-request', 'email-verify-confirm', 'google-link', 'apple-link',
-    'oauth-google-signin', 'oauth-apple-signin'
+    'oauth-google-signin', 'oauth-apple-signin', 'passwordless-signin-request',
+    'passwordless-signup-request', 'passwordless-verify'
   )),
   result      text NOT NULL CHECK (result IN ('success', 'failed', 'blocked')),
   -- Optional reason for failure/block (e.g., 'rate-limited', 'invalid-password', 'email-not-verified')

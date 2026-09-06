@@ -191,6 +191,81 @@ export async function consumeOAuthState(state: string): Promise<string | null> {
   return row?.return_to ?? null;
 }
 
+// ----------------------------------------------------- passwordless tokens --
+
+/**
+ * Create a passwordless sign-in token. Returns the unhashed token (digest)
+ * for sending in the email link.
+ */
+export async function createPasswordlessToken(input: {
+  digest: string;
+  email: string;
+  userId?: string;
+  code: string;
+  codeDisplay: string;
+  purpose: "signin" | "signup";
+  ttlMinutes: number;
+}): Promise<void> {
+  await query(
+    `INSERT INTO passwordless_tokens (digest, email, user_id, code, code_display, purpose, expires_at)
+     VALUES ($1, $2, $3, $4, $5, $6, now() + make_interval(mins => $7))`,
+    [
+      input.digest,
+      input.email,
+      input.userId ?? null,
+      input.code,
+      input.codeDisplay,
+      input.purpose,
+      input.ttlMinutes,
+    ],
+  );
+}
+
+/**
+ * Atomically consume a passwordless token by digest. Returns user_id if the
+ * token is valid and not yet used, or null if invalid/expired/already-used.
+ * The `used_at IS NULL` check ensures single-use under concurrency.
+ */
+export async function consumePasswordlessToken(digest: string): Promise<string | null> {
+  const row = await queryOne<{ user_id: string; email: string }>(
+    `UPDATE passwordless_tokens
+        SET used_at = now()
+      WHERE digest = $1 AND used_at IS NULL AND expires_at > now()
+      RETURNING user_id, email`,
+    [digest],
+  );
+  return row?.user_id ?? null;
+}
+
+/**
+ * Consume a passwordless token by code. Returns both user_id (for existing users)
+ * and email (for signup flows). Returns null if invalid/expired/already-used.
+ */
+export async function consumePasswordlessCode(code: string): Promise<{ userId: string | null; email: string } | null> {
+  const row = await queryOne<{ user_id: string | null; email: string }>(
+    `UPDATE passwordless_tokens
+        SET used_at = now()
+      WHERE code = $1 AND used_at IS NULL AND expires_at > now()
+      RETURNING user_id, email`,
+    [code],
+  );
+  return row ? { userId: row.user_id, email: row.email } : null;
+}
+
+/**
+ * Check if a pending passwordless token exists for an email.
+ * Used to prevent signup spam or to show "check your email" UI.
+ */
+export async function getPendingPasswordlessToken(email: string): Promise<{ purpose: string; createdAt: Date } | null> {
+  const row = await queryOne<{ purpose: string; created_at: Date }>(
+    `SELECT purpose, created_at FROM passwordless_tokens
+      WHERE email = $1 AND used_at IS NULL AND expires_at > now()
+      ORDER BY created_at DESC LIMIT 1`,
+    [email],
+  );
+  return row ? { purpose: row.purpose, createdAt: row.created_at } : null;
+}
+
 // ---------------------------------------------------------------- account --
 
 export interface ProfileRow {
@@ -577,7 +652,10 @@ export async function logAuthEvent(input: {
     | "google-link"
     | "apple-link"
     | "oauth-google-signin"
-    | "oauth-apple-signin";
+    | "oauth-apple-signin"
+    | "passwordless-signin-request"
+    | "passwordless-signup-request"
+    | "passwordless-verify";
   result: "success" | "failed" | "blocked";
   reason?: string;
   clientIp?: string;

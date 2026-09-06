@@ -37,6 +37,10 @@ import {
   consumeAuthToken,
   createOAuthState,
   consumeOAuthState,
+  createPasswordlessToken,
+  consumePasswordlessToken,
+  consumePasswordlessCode,
+  getPendingPasswordlessToken,
   setEmailVerified,
   setPasswordHash,
   toAuthedUser,
@@ -51,7 +55,11 @@ import {
   getClientIp,
   getUserAgent,
 } from "../audit-core.js";
-import { sendVerificationEmail, sendPasswordResetEmail } from "../mail.js";
+import {
+  generatePasswordlessToken,
+  PASSWORD_LESS_TTL_MINUTES,
+} from "../passwordless-core.js";
+import { sendVerificationEmail, sendPasswordResetEmail, sendPasswordlessSigninEmail } from "../mail.js";
 import { handler, requireUser, HttpError } from "../http.js";
 import { meetsPasswordPolicy } from "../auth-core.js";
 
@@ -769,5 +777,191 @@ authRouter.post(
 
     await establishSession(res, row.id);
     return res.redirect(returnTo);
+  }),
+);
+
+// --------------------------------------------------- Passwordless sign-in --
+
+/**
+ * Request a passwordless sign-in token. Generates a magic link and one-time code,
+ * sends them via email, and returns a message asking the user to check their email.
+ *
+ * Works for both existing users (signin) and new users (signup).
+ * Uses the same rate limiting as password-based login.
+ */
+authRouter.post(
+  "/passwordless/request",
+  credentialLimiter,
+  handler(async (req, res) => {
+    const email = normalizeEmail(req.body?.email);
+    const clientIp = getClientIp(req);
+    const userAgent = getUserAgent(req);
+
+    if (!EMAIL_RE.test(email)) {
+      await logAuthEvent({
+        eventType: "passwordless-signin-request",
+        result: "failed",
+        reason: "invalid-email",
+        clientIp,
+        userAgent,
+      });
+      // Always 200 — don't reveal whether address is valid
+      return res.json({ ok: true, message: "If that email exists, you'll receive a sign-in link." });
+    }
+
+    // Check for pending tokens to prevent spam
+    const pending = await getPendingPasswordlessToken(email);
+    if (pending) {
+      // Token still exists; user can use it or wait for it to expire
+      await logAuthEvent({
+        eventType: "passwordless-signin-request",
+        result: "failed",
+        reason: "token-already-sent",
+        clientIp,
+        userAgent,
+      });
+      return res.json({ ok: true, message: "Check your email for a sign-in link." });
+    }
+
+    const user = await findUserByEmail(email);
+    const { token, code, codeDisplay } = generatePasswordlessToken();
+    const digest = hashToken(token);
+
+    await createPasswordlessToken({
+      digest,
+      email,
+      userId: user?.id,
+      code,
+      codeDisplay,
+      purpose: user ? "signin" : "signup",
+      ttlMinutes: PASSWORD_LESS_TTL_MINUTES,
+    });
+
+    await sendPasswordlessSigninEmail(email, token, code);
+
+    if (user) {
+      await logAuthEvent({
+        userId: user.id,
+        eventType: "passwordless-signin-request",
+        result: "success",
+        clientIp,
+        userAgent,
+      });
+    } else {
+      await logAuthEvent({
+        eventType: "passwordless-signup-request",
+        result: "success",
+        clientIp,
+        userAgent,
+      });
+    }
+
+    return res.json({ ok: true, message: "Check your email for a sign-in link." });
+  }),
+);
+
+/**
+ * Verify a passwordless token (magic link) or one-time code.
+ * On success, creates a session and returns the user.
+ *
+ * POST with code: `{ code: "123456" }`
+ * GET with token: `?token=...` (redirect from email link)
+ */
+authRouter.post(
+  "/passwordless/verify",
+  handler(async (req, res) => {
+    const code = typeof req.body?.code === "string" ? req.body.code : "";
+    const clientIp = getClientIp(req);
+    const userAgent = getUserAgent(req);
+
+    if (!code) {
+      await logAuthEvent({
+        eventType: "passwordless-verify",
+        result: "failed",
+        reason: "invalid-action-code",
+        clientIp,
+        userAgent,
+      });
+      throw new HttpError(400, "auth/invalid-action-code");
+    }
+
+    const result = await consumePasswordlessCode(code);
+    if (!result) {
+      await logAuthEvent({
+        eventType: "passwordless-verify",
+        result: "failed",
+        reason: "invalid-action-code",
+        clientIp,
+        userAgent,
+      });
+      throw new HttpError(400, "auth/invalid-action-code");
+    }
+
+    // If user_id is null, this is a signup flow — create the user first
+    let userId = result.userId;
+    if (!userId) {
+      const user = await createUser({ email: result.email, displayName: "", emailVerified: true });
+      userId = user.id;
+      await logAuthEvent({
+        userId,
+        eventType: "register",
+        result: "success",
+        reason: "passwordless-signup",
+        clientIp,
+        userAgent,
+      });
+    }
+
+    await establishSession(res, userId);
+    await recordLastLogin(userId);
+    await logAuthEvent({
+      userId,
+      eventType: "passwordless-verify",
+      result: "success",
+      clientIp,
+      userAgent,
+    });
+
+    const user = await findUserByEmail(result.email);
+    if (!user) throw new Error("passwordless-verify: user not found after creation");
+
+    return res.json({ user: publicUser(user) });
+  }),
+);
+
+/**
+ * Verify a passwordless magic link (via GET with token parameter).
+ * Redirects to the app with signin status in the URL.
+ */
+authRouter.get(
+  "/passwordless/verify",
+  handler(async (req, res) => {
+    const token = typeof req.query.token === "string" ? req.query.token : "";
+    const clientIp = getClientIp(req);
+    const userAgent = getUserAgent(req);
+
+    const userId = token ? await consumePasswordlessToken(hashToken(token)) : null;
+    if (!userId) {
+      await logAuthEvent({
+        eventType: "passwordless-verify",
+        result: "failed",
+        reason: "invalid-action-code",
+        clientIp,
+        userAgent,
+      });
+      return res.redirect(`${config.appOrigin}/account?signin=invalid`);
+    }
+
+    await establishSession(res, userId);
+    await recordLastLogin(userId);
+    await logAuthEvent({
+      userId,
+      eventType: "passwordless-verify",
+      result: "success",
+      clientIp,
+      userAgent,
+    });
+
+    return res.redirect(`${config.appOrigin}/account?signin=success`);
   }),
 );

@@ -21,7 +21,10 @@ export interface AuthEventLog {
     | "google-link"
     | "apple-link"
     | "oauth-google-signin"
-    | "oauth-apple-signin";
+    | "oauth-apple-signin"
+    | "passwordless-signin-request"
+    | "passwordless-signup-request"
+    | "passwordless-verify";
   result: "success" | "failed" | "blocked";
   reason?: string;
   clientIp?: string;
