@@ -15,6 +15,8 @@ import {
   signInWithEmail,
   signInWithGoogle,
   signInWithApple,
+  signInWithOAuthProvider,
+  signInWithMagicLink,
 } from '@/lib/services/auth';
 import {
   AUTH_TIMEOUT_CODE,
@@ -39,11 +41,11 @@ export interface FieldErrors {
 
 export type LoginForm = ReturnType<typeof useForm<{ email: string; password: string }>>;
 export type SignupForm = ReturnType<
-  typeof useForm<{ name: string; email: string; password: string; confirmPassword: string }>
+  typeof useForm<{ name: string; email: string; password: string; confirmPassword: string; role: string }>
 >;
 
 export interface SignInForm {
-  mode: 'in' | 'up';
+  mode: 'in' | 'up' | 'magic';
   animating: boolean;
   busy: boolean;
   errors: FieldErrors;
@@ -51,13 +53,19 @@ export interface SignInForm {
   /** Set when auth fails because this (mirror/preview) host isn't authorized. */
   mainSiteHref: string | null;
   toggleMode: () => void;
+  setMode: (m: 'in' | 'up' | 'magic') => void;
   forgotPassword: () => void;
+  sendMagic: (email: string) => Promise<void>;
   loginForm: LoginForm;
   signupForm: SignupForm;
   /** Continue-with-Google, wrapped in the shared runner. */
   runGoogle: () => void;
   /** Continue-with-Apple, wrapped in the shared runner. */
   runApple: () => void;
+  /** Continue-with-GitHub, wrapped in the shared runner. */
+  runGithub: () => void;
+  /** Continue-with-Discord, wrapped in the shared runner. */
+  runDiscord: () => void;
 }
 
 export function useSignInForm(): SignInForm {
@@ -86,6 +94,21 @@ export function useSignInForm(): SignInForm {
     }, 400);
   };
 
+  const switchMode = (newMode: 'in' | 'up' | 'magic') => {
+    if (newMode === mode) return;
+    setAnimating(true);
+    setTimeout(() => {
+      setMode(newMode);
+      setErrors({});
+      setNotice('');
+      loginForm.resetForm();
+      signupForm.resetForm();
+    }, 150);
+    setTimeout(() => {
+      setAnimating(false);
+    }, 300);
+  };
+
   async function run(
     fn: () => Promise<unknown>,
     setFormErrors?: (errs: Partial<Record<string, string>>) => void,
@@ -94,10 +117,6 @@ export function useSignInForm(): SignInForm {
     setErrors({});
     setNotice('');
     setMainSiteHref(null);
-    // Watchdog: a request that never settles (a hung fetch, a proxy swallowing
-    // the response) would leave the button spinning forever with no feedback.
-    // Reject with a synthetic `auth/*`-shaped code so the standard mapping below
-    // surfaces the timeout message.
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
     try {
       await Promise.race([
@@ -108,24 +127,16 @@ export function useSignInForm(): SignInForm {
       ]);
     } catch (e) {
       const code = (e as { code?: string }).code;
-      // Closing the Google popup (or opening a second one) isn't a failure — the
-      // `finally` clears busy, so bail silently instead of flashing a scary error.
       if (isAuthDismiss(code)) return;
       const { field, key } = authErrorInfo(code);
       const generic = key === 'account.authError';
       if (generic) console.error('Auth failure', code, e);
 
       let errorMessage = t(key);
-      // For deployment/config/unknown failures (never credential ones), append the
-      // raw code so the exact cause is visible and copyable from the page, ending
-      // the "still broken but which error?" guessing loop.
       if (field === 'general' && code) {
         errorMessage = `${errorMessage} ${t('account.errors.technicalDetail', { code })}`;
       }
 
-      // A domain-authorization failure on a preview/mirror host is a dead end here
-      // ("use the main site" with nowhere to go). Turn it into a click-through to
-      // the same page on the canonical origin, which *is* an authorized domain.
       if (
         isDomainAuthError(code) &&
         typeof window !== 'undefined' &&
@@ -165,7 +176,7 @@ export function useSignInForm(): SignInForm {
   });
 
   const signupForm = useForm({
-    initialValues: { name: '', email: '', password: '', confirmPassword: '' },
+    initialValues: { name: '', email: '', password: '', confirmPassword: '', role: 'pilot' },
     validate: (values) => {
       const errs: FieldErrors & { confirmPassword?: string } = {};
       if (!values.name.trim()) {
@@ -189,7 +200,12 @@ export function useSignInForm(): SignInForm {
     onSubmit: async (values) => {
       await run(
         () =>
-          registerWithEmail(values.email.trim(), values.password, values.name.trim() || undefined),
+          registerWithEmail(
+            values.email.trim(),
+            values.password,
+            values.name.trim() || undefined,
+            values.role || undefined,
+          ),
         signupForm.setErrors,
       );
     },
@@ -212,6 +228,13 @@ export function useSignInForm(): SignInForm {
     });
   }
 
+  async function sendMagic(email: string) {
+    await run(async () => {
+      await signInWithMagicLink(email);
+      setNotice(t('account.magicLinkSent'));
+    });
+  }
+
   return {
     mode,
     animating,
@@ -220,10 +243,14 @@ export function useSignInForm(): SignInForm {
     notice,
     mainSiteHref,
     toggleMode,
+    setMode: switchMode,
     forgotPassword,
+    sendMagic,
     loginForm,
     signupForm,
     runGoogle: () => void run(signInWithGoogle),
     runApple: () => void run(signInWithApple),
+    runGithub: () => void run(() => signInWithOAuthProvider('github')),
+    runDiscord: () => void run(() => signInWithOAuthProvider('discord')),
   };
 }

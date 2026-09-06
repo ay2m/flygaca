@@ -13,12 +13,26 @@
  */
 import { isNative } from '@/lib/native/nativeBridge';
 import { isBackendConfigured, apiFetch, apiUrl, ApiError } from '@/lib/services/backend';
+import {
+  isSupabaseConfigured,
+  getSupabase,
+  signInWithOAuth as supabaseSignInWithOAuth,
+  signInWithPassword as supabaseSignInWithPassword,
+  signUpWithPassword as supabaseSignUpWithPassword,
+  signInWithMagicLink as supabaseSignInWithMagicLink,
+  sendPasswordResetEmail as supabaseSendPasswordResetEmail,
+  updatePassword as supabaseUpdatePassword,
+  signOutSupabase,
+  type AuthOAuthProvider,
+} from '@/lib/supabase/client';
 
 export interface AuthUser {
   uid: string;
   email: string | null;
   displayName: string | null;
   emailVerified: boolean;
+  avatarUrl?: string | null;
+  provider?: string | null;
 }
 
 interface SessionResponse {
@@ -35,6 +49,11 @@ export function isAuthAvailable(): boolean {
   return isBackendConfigured();
 }
 
+/** True when Supabase client is available. */
+export function isSupabaseAuthAvailable(): boolean {
+  return isSupabaseConfigured();
+}
+
 type Listener = (user: AuthUser | null) => void;
 
 const listeners = new Set<Listener>();
@@ -46,13 +65,73 @@ function emit(user: AuthUser | null): void {
   for (const cb of listeners) cb(user);
 }
 
+function mapSupabaseUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } | null): AuthUser | null {
+  if (!user) return null;
+  const meta = user.user_metadata || {};
+  return {
+    uid: user.id,
+    email: user.email ?? null,
+    displayName: (meta.displayName as string) || (meta.full_name as string) || (meta.name as string) || null,
+    emailVerified: Boolean(user.email_confirmed_at),
+    avatarUrl: (meta.avatar_url as string) || (meta.picture as string) || null,
+    provider: (user.app_metadata?.provider as string) || null,
+  };
+}
+
+function mapSupabaseError(err: unknown): Error {
+  if (!err) return new ApiError('auth/invalid-credential', 400);
+  const msg = ((err as { message?: string })?.message || '').toLowerCase();
+  const status = (err as { status?: number })?.status;
+  if (status === 429 || msg.includes('rate limit')) {
+    return new ApiError('auth/too-many-requests', 429);
+  }
+  if (msg.includes('invalid login credentials') || msg.includes('invalid credential') || msg.includes('invalid_grant')) {
+    return new ApiError('auth/invalid-credential', 401);
+  }
+  if (msg.includes('already registered') || msg.includes('already in use') || msg.includes('user already exists')) {
+    return new ApiError('auth/email-already-in-use', 409);
+  }
+  if (msg.includes('weak') || msg.includes('at least 6 characters') || msg.includes('password should be')) {
+    return new ApiError('auth/weak-password', 400);
+  }
+  if (msg.includes('user not found') || msg.includes('no user found')) {
+    return new ApiError('auth/user-not-found', 404);
+  }
+  return new ApiError((err as { code?: string })?.code || 'auth/invalid-credential', status || 400);
+}
+
 /** Fetch (and memoize) the current session. Resolves `null` when signed out. */
 async function fetchSession(force = false): Promise<AuthUser | null> {
-  if (!isBackendConfigured()) return null;
+  if (!isBackendConfigured() && !isSupabaseConfigured()) return null;
   if (force) sessionPromise = null;
-  sessionPromise ??= apiFetch<SessionResponse>('/auth/session')
-    .then((r) => r.user ?? null)
-    .catch(() => null);
+
+  sessionPromise ??= (async () => {
+    // Check backend session first if configured (mirrors test harness and first-party API)
+    if (isBackendConfigured()) {
+      const backendUser = await apiFetch<SessionResponse>('/auth/session')
+        .then((r) => r.user ?? null)
+        .catch(() => null);
+      if (backendUser) return backendUser;
+    }
+
+    // Check Supabase session if configured
+    if (isSupabaseConfigured()) {
+      try {
+        const client = getSupabase();
+        if (client) {
+          const { data } = await client.auth.getSession();
+          if (data?.session?.user) {
+            return mapSupabaseUser(data.session.user);
+          }
+        }
+      } catch (err) {
+        console.warn('Supabase fetchSession error:', err);
+      }
+    }
+
+    return null;
+  })();
+
   const user = await sessionPromise;
   current = user;
   return user;
@@ -73,6 +152,18 @@ export async function getCurrentUser(): Promise<AuthUser | null> {
  * travels with `credentials: 'include'` and no token is needed.
  */
 export async function getIdToken(): Promise<string | null> {
+  if (isSupabaseConfigured()) {
+    try {
+      const client = getSupabase();
+      if (client) {
+        const { data } = await client.auth.getSession();
+        if (data?.session?.access_token) return data.session.access_token;
+      }
+    } catch {
+      // Fall through to backend
+    }
+  }
+
   if (!isBackendConfigured() || !isNative()) return null;
   const r = await apiFetch<{ token: string | null }>('/auth/token').catch(() => null);
   return r?.token ?? null;
@@ -84,7 +175,7 @@ export async function getIdToken(): Promise<string | null> {
  * subsequent sign-in/sign-out and on tab refocus.
  */
 export async function onAuthChange(cb: Listener): Promise<() => void> {
-  if (!isBackendConfigured()) {
+  if (!isAuthAvailable()) {
     cb(null);
     return () => {};
   }
@@ -92,9 +183,22 @@ export async function onAuthChange(cb: Listener): Promise<() => void> {
   listeners.add(cb);
   const revalidate = () => {
     void fetchSession(true).then((u) => {
-      if (u?.uid !== current?.uid) emit(u);
+      if (u?.uid !== current?.uid || u?.emailVerified !== current?.emailVerified) emit(u);
     });
   };
+
+  let supabaseUnsub: (() => void) | undefined;
+  if (isSupabaseConfigured()) {
+    const client = getSupabase();
+    if (client) {
+      const { data: sub } = client.auth.onAuthStateChange(async (_event, session) => {
+        const mapped = session?.user ? mapSupabaseUser(session.user) : null;
+        emit(mapped);
+      });
+      supabaseUnsub = () => sub.subscription.unsubscribe();
+    }
+  }
+
   if (typeof window !== 'undefined') {
     window.addEventListener('focus', revalidate);
   }
@@ -103,20 +207,15 @@ export async function onAuthChange(cb: Listener): Promise<() => void> {
 
   return () => {
     listeners.delete(cb);
+    if (supabaseUnsub) supabaseUnsub();
     if (typeof window !== 'undefined') window.removeEventListener('focus', revalidate);
   };
 }
 
 function requireBackend(): void {
-  if (!isBackendConfigured()) throw new ApiError('auth-unavailable', 0);
+  if (!isAuthAvailable()) throw new ApiError('auth-unavailable', 0);
 }
 
-/**
- * Google sign-in. The OAuth dance is server-side (the API owns the client secret),
- * so this is a full-page navigation to `/api/auth/google/start` and the promise
- * never resolves with a user — the app re-bootstraps on the callback redirect and
- * `onAuthChange` emits the signed-in user then.
- */
 export async function signInWithGoogle(): Promise<AuthUser | null> {
   requireBackend();
   const returnTo = typeof window !== 'undefined' ? window.location.href : '/';
@@ -126,10 +225,6 @@ export async function signInWithGoogle(): Promise<AuthUser | null> {
   return null;
 }
 
-/**
- * Apple sign-in. Same server-side OAuth dance as Google — full-page navigation
- * to `/api/auth/apple/start` with no return to this promise.
- */
 export async function signInWithApple(): Promise<AuthUser | null> {
   requireBackend();
   const returnTo = typeof window !== 'undefined' ? window.location.href : '/';
@@ -137,8 +232,67 @@ export async function signInWithApple(): Promise<AuthUser | null> {
   return null;
 }
 
+/**
+ * Generic OAuth sign-in for all supported providers:
+ * Google, Apple, GitHub, Discord.
+ */
+export async function signInWithOAuthProvider(
+  provider: AuthOAuthProvider,
+  redirectTo?: string,
+): Promise<void> {
+  requireBackend();
+  if (isSupabaseConfigured()) {
+    await supabaseSignInWithOAuth({ provider, redirectTo });
+    return;
+  }
+  if (provider === 'google') {
+    await signInWithGoogle();
+    return;
+  }
+  if (provider === 'apple') {
+    await signInWithApple();
+    return;
+  }
+  throw new ApiError('auth/operation-not-allowed', 400);
+}
+
+/** Sign in with a passwordless Magic Link (OTP). */
+export async function signInWithMagicLink(email: string): Promise<void> {
+  requireBackend();
+  if (isSupabaseConfigured()) {
+    try {
+      await supabaseSignInWithMagicLink(email);
+      return;
+    } catch (err) {
+      throw mapSupabaseError(err);
+    }
+  }
+  // If only backend is configured, send passwordless email request
+  await apiFetch<unknown>('/auth/passwordless/start', {
+    method: 'POST',
+    body: { email },
+  });
+}
+
 export async function signInWithEmail(email: string, password: string): Promise<AuthUser> {
   requireBackend();
+
+  if (isSupabaseConfigured()) {
+    try {
+      const data = await supabaseSignInWithPassword(email, password);
+      const user = mapSupabaseUser(data.user);
+      if (!user) throw new ApiError('auth/invalid-credential', 401);
+      sessionPromise = Promise.resolve(user);
+      emit(user);
+      return user;
+    } catch (err) {
+      // If Supabase authentication fails and backend is configured, attempt backend fallback
+      if (!isBackendConfigured()) {
+        throw mapSupabaseError(err);
+      }
+    }
+  }
+
   const { user } = await apiFetch<SessionResponse>('/auth/login', {
     method: 'POST',
     body: { email, password },
@@ -153,8 +307,25 @@ export async function registerWithEmail(
   email: string,
   password: string,
   displayName?: string,
+  role?: string,
 ): Promise<AuthUser> {
   requireBackend();
+
+  if (isSupabaseConfigured()) {
+    try {
+      const data = await supabaseSignUpWithPassword(email, password, { displayName, role });
+      const user = mapSupabaseUser(data.user);
+      if (!user) throw new ApiError('auth/internal-error', 500);
+      sessionPromise = Promise.resolve(user);
+      emit(user);
+      return user;
+    } catch (err) {
+      if (!isBackendConfigured()) {
+        throw mapSupabaseError(err);
+      }
+    }
+  }
+
   const { user } = await apiFetch<SessionResponse>('/auth/register', {
     method: 'POST',
     body: { email, password, displayName },
@@ -166,21 +337,67 @@ export async function registerWithEmail(
 }
 
 export async function signOutUser(): Promise<void> {
-  if (!isBackendConfigured()) return;
-  await apiFetch<unknown>('/auth/logout', { method: 'POST' }).catch(() => null);
+  if (isSupabaseConfigured()) {
+    await signOutSupabase().catch(() => null);
+  }
+  if (isBackendConfigured()) {
+    await apiFetch<unknown>('/auth/logout', { method: 'POST' }).catch(() => null);
+  }
   sessionPromise = Promise.resolve(null);
   emit(null);
 }
 
-/** Email the user a password-reset link. Throws `auth-unavailable` when unconfigured. */
+/** Email the user a password-reset link. */
 export async function sendPasswordReset(email: string): Promise<void> {
   requireBackend();
-  await apiFetch<unknown>('/auth/password-reset', { method: 'POST', body: { email } });
+  if (isBackendConfigured()) {
+    await apiFetch<unknown>('/auth/password-reset', { method: 'POST', body: { email } });
+    return;
+  }
+  if (isSupabaseConfigured()) {
+    try {
+      await supabaseSendPasswordResetEmail(email);
+      return;
+    } catch (err) {
+      throw mapSupabaseError(err);
+    }
+  }
+}
+
+/** Update the current user's password. */
+export async function updateUserPassword(newPassword: string): Promise<void> {
+  requireBackend();
+  if (isSupabaseConfigured()) {
+    try {
+      await supabaseUpdatePassword(newPassword);
+      return;
+    } catch (err) {
+      if (!isBackendConfigured()) throw mapSupabaseError(err);
+    }
+  }
+  await apiFetch<unknown>('/auth/password-change', {
+    method: 'POST',
+    body: { password: newPassword },
+  });
 }
 
 /** Re-send the verification email to the current user (no-op when signed out). */
 export async function resendEmailVerification(): Promise<void> {
   requireBackend();
-  if (!(await fetchSession())) return;
-  await apiFetch<unknown>('/auth/verify-email/resend', { method: 'POST' });
+  if (isBackendConfigured()) {
+    if (!(await fetchSession())) return;
+    await apiFetch<unknown>('/auth/verify-email/resend', { method: 'POST' });
+    return;
+  }
+
+  const cur = await fetchSession();
+  if (!cur?.email) return;
+
+  if (isSupabaseConfigured()) {
+    try {
+      await supabaseSendPasswordResetEmail(cur.email);
+    } catch {
+      /* ignore */
+    }
+  }
 }

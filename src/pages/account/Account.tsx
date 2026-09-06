@@ -1,99 +1,179 @@
 import { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Gear,
+  SignOut,
+  ShieldCheck,
+  Warning,
+  Sparkle,
+  Airplane,
+  IdentificationBadge,
+  LinkSimple,
+  LockKey,
+  CreditCard,
+} from '@phosphor-icons/react';
 import { Alert } from '@/components/Alert';
 import { Disclaimer } from '@/components/Disclaimer';
 import { CaptainAvatar } from '@/components/CaptainAvatar';
 import { StatusPill } from '@/components/StatusPill';
-import { Card } from '@/components/ui/Card';
 import { Button, ButtonLink } from '@/components/ui/Button';
-import { SubscriptionPanel } from '@/components/account/SubscriptionPanel';
 import { refreshAccount, signOut, useAccount } from '@/lib/services/account';
 import { uiPlan } from '@/lib/services/entitlements';
-import { isAuthAvailable, resendEmailVerification } from '@/lib/services/auth';
+import { isAuthAvailable, isSupabaseAuthAvailable, resendEmailVerification, getCurrentUser, type AuthUser } from '@/lib/services/auth';
 import { useNoindexMeta } from '@/hooks/usePageMeta';
 import { AccountSignedOut } from './AccountSignedOut';
-import account from './account.module.css';
+import { AccountOverviewTab } from './AccountOverviewTab';
+import { AccountDossierTab } from './AccountDossierTab';
+import { AccountConnectedTab } from './AccountConnectedTab';
+import { AccountSecurityTab } from './AccountSecurityTab';
+import { AccountMembershipTab } from './AccountMembershipTab';
 import styles from './AccountPage.module.css';
 
-/** Banner prompting an unverified user to resend their verification email. */
-function VerifyBanner() {
-  const { t } = useTranslation();
-  const [sent, setSent] = useState(false);
-  const [busy, setBusy] = useState(false);
-
-  async function resend() {
-    setBusy(true);
-    try {
-      await resendEmailVerification();
-      setSent(true);
-    } catch {
-      /* ignore — generic to avoid leaking account state */
-    } finally {
-      setBusy(false);
-    }
-  }
-
-  return (
-    <div className={styles.verifyBanner} role="status">
-      <StatusPill tone="warning">{t('account.emailNotVerified')}</StatusPill>
-      {sent ? (
-        <span className={styles.verifySent}>{t('account.verificationSent')}</span>
-      ) : (
-        <button
-          type="button"
-          className={styles.linkBtn}
-          disabled={busy}
-          onClick={() => void resend()}
-        >
-          {t('account.resendVerification')}
-        </button>
-      )}
-    </div>
-  );
-}
+type AccountTab = 'overview' | 'dossier' | 'connected' | 'security' | 'membership';
 
 export function Account() {
   const { t } = useTranslation();
-  // Session-gated dashboard — keep it out of the index (no SEO value; a thin,
-  // login-walled page to a crawler).
   useNoindexMeta(t('meta.account'));
-  const { session, uid, emailVerified, profile, entitlement, syncError } = useAccount();
+
+  const { session, uid, emailVerified, profile, flights, records, entitlement, chatCredits, syncError } =
+    useAccount();
   const plan = uiPlan(entitlement);
+  const isPro = plan !== 'free';
+
   const [params, setParams] = useSearchParams();
   const checkout = params.get('checkout');
+  const rawTab = params.get('tab') as AccountTab | null;
+  const activeTab: AccountTab =
+    rawTab && ['overview', 'dossier', 'connected', 'security', 'membership'].includes(rawTab)
+      ? rawTab
+      : 'overview';
 
-  // After a checkout returns, the entitlement is granted asynchronously by the
-  // billing functions — poll a few times so the new plan appears without a reload.
+  const [currentUser, setCurrentUser] = useState<AuthUser | null>(null);
+  const [resendBusy, setResendBusy] = useState(false);
+  const [resendSent, setResendSent] = useState(false);
+
+  useEffect(() => {
+    void getCurrentUser().then(setCurrentUser);
+  }, [session, uid]);
+
+  // Poll after checkout return
   useEffect(() => {
     if (checkout !== 'success') return;
     void refreshAccount();
     let n = 0;
     const id = window.setInterval(() => {
       void refreshAccount();
-      // ~20s of polling — the webhook write can lag the redirect by several seconds.
       if (++n >= 8) window.clearInterval(id);
     }, 2500);
     return () => window.clearInterval(id);
   }, [checkout]);
 
+  function switchTab(newTab: AccountTab) {
+    setParams(
+      (prev) => {
+        const next = new URLSearchParams(prev);
+        if (newTab === 'overview') {
+          next.delete('tab');
+        } else {
+          next.set('tab', newTab);
+        }
+        return next;
+      },
+      { replace: true },
+    );
+  }
+
+  async function handleResendVerification() {
+    setResendBusy(true);
+    try {
+      await resendEmailVerification();
+      setResendSent(true);
+    } catch {
+      /* ignore */
+    } finally {
+      setResendBusy(false);
+    }
+  }
+
   if (!session) return <AccountSignedOut />;
 
-  return (
-    <section className={`container-narrow ${account.page}`}>
-      <Card variant="raised" className={styles.identityCard}>
-        <CaptainAvatar size="md" pose="smile" decorative className={styles.identityAvatar} />
-        <div>
-          <h1>{t('account.title')}</h1>
-          <p className={account.sub}>
-            {t('account.signedInAs', { name: profile.displayName || profile.email })}
-            <span className={account.planBadge} data-plan={plan}>
-              {t(`account.plan.${plan}`)}
-            </span>
-          </p>
-        </div>
-      </Card>
+  const pilotName = profile.displayName || currentUser?.displayName || profile.email || 'Pilot';
+  const roleLabel = profile.role ? t(`account.roles.${profile.role}`, { defaultValue: profile.role }) : 'Pilot';
 
+  return (
+    <section className={`container ${styles.hubContainer}`}>
+      {/* ── Pilot Command Deck (Hero Header Card) ── */}
+      <motion.header
+        className={styles.heroDeck}
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+      >
+        <div className={styles.heroLeft}>
+          <div className={styles.avatarRing}>
+            <CaptainAvatar size="lg" pose="smile" glow live decorative />
+          </div>
+
+          <div className={styles.pilotIdentity}>
+            <h1>
+              <span>{pilotName}</span>
+              <span className={styles.planTierTag} data-plan={plan}>
+                {t(`account.plan.${plan}`)}
+              </span>
+            </h1>
+
+            <div className={styles.pilotMetaRow}>
+              <span>✈️ {roleLabel}</span>
+              {profile.homeBase && <span>📍 {profile.homeBase}</span>}
+              <span>•</span>
+              <span>{profile.email || currentUser?.email}</span>
+
+              {/* Email verified status indicator */}
+              {(isAuthAvailable() || isSupabaseAuthAvailable()) && (
+                <>
+                  <span>•</span>
+                  {emailVerified ? (
+                    <span className={styles.verifiedPill}>
+                      <ShieldCheck size={16} weight="fill" />
+                      <span>{t('account.valid')}</span>
+                    </span>
+                  ) : (
+                    <span className={styles.unverifiedPill}>
+                      <Warning size={14} weight="fill" />
+                      <span>{t('account.emailNotVerified')}</span>
+                      {!resendSent ? (
+                        <button
+                          type="button"
+                          className={styles.unverifiedBtn}
+                          disabled={resendBusy}
+                          onClick={() => void handleResendVerification()}
+                        >
+                          {t('account.resendVerification')}
+                        </button>
+                      ) : (
+                        <span style={{ color: 'var(--color-success)' }}>✓ Sent</span>
+                      )}
+                    </span>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+
+        <div className={styles.heroActions}>
+          <ButtonLink to="/settings" variant="clay" icon={<Gear size={16} />}>
+            {t('account.settings')}
+          </ButtonLink>
+          <Button type="button" variant="clay" icon={<SignOut size={16} />} onClick={() => signOut()}>
+            {t('account.signOut')}
+          </Button>
+        </div>
+      </motion.header>
+
+      {/* Checkout return banners */}
       {checkout === 'success' && (
         <div className={styles.verifyBanner} role="status">
           <StatusPill tone={plan !== 'free' ? 'success' : 'warning'}>
@@ -107,14 +187,10 @@ export function Account() {
         </div>
       )}
       {checkout === 'cancel' && (
-        <p className={account.note} role="status">
+        <p className={styles.note} role="status">
           {t('account.subscription.checkoutCanceled')}
         </p>
       )}
-
-      {isAuthAvailable() && uid && !emailVerified && <VerifyBanner />}
-
-      <SubscriptionPanel />
 
       {syncError && (
         <Alert tone="warning" role="status" icon="⚠">
@@ -122,30 +198,122 @@ export function Account() {
         </Alert>
       )}
 
-      {/* The signed-in home is /dashboard; the daily surfaces (currency, logbook,
-          records) live there and in the account nav menu, so this hub stays
-          focused on identity, billing and settings. */}
-      <div className={account.linkRow}>
-        <ButtonLink to="/dashboard" variant="clayPrimary">
-          {t('account.dashboard')}
-        </ButtonLink>
-        <ButtonLink to="/logbook" variant="clay">
-          {t('account.logbook')}
-        </ButtonLink>
-        <ButtonLink to="/tools" variant="clay">
-          {t('nav.tools')}
-        </ButtonLink>
-        <ButtonLink to="/settings" variant="clay">
-          {t('account.settings')}
-        </ButtonLink>
-      </div>
-      <div className={account.actions}>
-        <Button type="button" variant="clay" onClick={() => signOut()}>
-          {t('account.signOut')}
-        </Button>
-      </div>
-      <p className={account.note}>{t('account.localNote')}</p>
+      {/* ── Animated Bento Navigation Tabs ── */}
+      <nav className={styles.hubNavStrip} aria-label="Account sections">
+        <button
+          type="button"
+          className={`${styles.hubNavBtn} ${activeTab === 'overview' ? styles.hubNavBtnActive : ''}`}
+          onClick={() => switchTab('overview')}
+        >
+          {activeTab === 'overview' && (
+            <motion.span
+              layoutId="hubActivePill"
+              className={styles.hubNavIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <Airplane size={18} weight={activeTab === 'overview' ? 'fill' : 'regular'} />
+          <span>{t('account.overview')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.hubNavBtn} ${activeTab === 'dossier' ? styles.hubNavBtnActive : ''}`}
+          onClick={() => switchTab('dossier')}
+        >
+          {activeTab === 'dossier' && (
+            <motion.span
+              layoutId="hubActivePill"
+              className={styles.hubNavIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <IdentificationBadge size={18} weight={activeTab === 'dossier' ? 'fill' : 'regular'} />
+          <span>{t('account.pilotDossier')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.hubNavBtn} ${activeTab === 'connected' ? styles.hubNavBtnActive : ''}`}
+          onClick={() => switchTab('connected')}
+        >
+          {activeTab === 'connected' && (
+            <motion.span
+              layoutId="hubActivePill"
+              className={styles.hubNavIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <LinkSimple size={18} weight={activeTab === 'connected' ? 'bold' : 'regular'} />
+          <span>{t('account.connectedAccounts')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.hubNavBtn} ${activeTab === 'security' ? styles.hubNavBtnActive : ''}`}
+          onClick={() => switchTab('security')}
+        >
+          {activeTab === 'security' && (
+            <motion.span
+              layoutId="hubActivePill"
+              className={styles.hubNavIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <LockKey size={18} weight={activeTab === 'security' ? 'fill' : 'regular'} />
+          <span>{t('account.security')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.hubNavBtn} ${activeTab === 'membership' ? styles.hubNavBtnActive : ''}`}
+          onClick={() => switchTab('membership')}
+        >
+          {activeTab === 'membership' && (
+            <motion.span
+              layoutId="hubActivePill"
+              className={styles.hubNavIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <CreditCard size={18} weight={activeTab === 'membership' ? 'fill' : 'regular'} />
+          <span>{t('account.membership')}</span>
+        </button>
+      </nav>
+
+      {/* ── Active Tab Content (Animated with Framer Motion) ── */}
+      <AnimatePresence mode="wait">
+        {activeTab === 'overview' && (
+          <AccountOverviewTab
+            key="overview"
+            profile={profile}
+            flights={flights}
+            records={records}
+            chatCredits={chatCredits}
+            isPro={isPro}
+          />
+        )}
+
+        {activeTab === 'dossier' && <AccountDossierTab key="dossier" profile={profile} />}
+
+        {activeTab === 'connected' && <AccountConnectedTab key="connected" user={currentUser} />}
+
+        {activeTab === 'security' && (
+          <AccountSecurityTab key="security" user={currentUser} emailVerified={emailVerified} />
+        )}
+
+        {activeTab === 'membership' && (
+          <AccountMembershipTab
+            key="membership"
+            entitlement={entitlement}
+            plan={plan}
+            chatCredits={chatCredits}
+          />
+        )}
+      </AnimatePresence>
+
       <Disclaimer compact />
     </section>
   );
 }
+export default Account;

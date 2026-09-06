@@ -1,9 +1,10 @@
 import { useTranslation } from 'react-i18next';
+import { motion } from 'framer-motion';
 import { Card } from '@/components/ui/Card';
 import { CaptainAvatar } from '@/components/CaptainAvatar';
 import { BrandMark } from '@/components/BrandMark';
 import { Disclaimer } from '@/components/Disclaimer';
-import { isAuthAvailable } from '@/lib/services/auth';
+import { isAuthAvailable, isSupabaseAuthAvailable } from '@/lib/services/auth';
 import { AmbientGlow } from '@/components/AmbientGlow';
 import { AuthUnavailable, BackendSignIn, LocalSignIn } from './SignInForms';
 import account from './account.module.css';
@@ -16,13 +17,20 @@ import styles from './AccountPage.module.css';
  */
 export function AccountSignedOut() {
   const { t } = useTranslation();
+  const authReady = isAuthAvailable() || isSupabaseAuthAvailable();
+
   return (
     <section className={`container ${styles.splitScreenPage}`}>
       <AmbientGlow variant="auth" />
 
       <div className={styles.splitScreenContent}>
         {/* Left side: The Auth Forms floating on glass */}
-        <div className={styles.authColumn}>
+        <motion.div
+          className={styles.authColumn}
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1] }}
+        >
           <div className={styles.authHeader}>
             <BrandMark />
             <h1 className={styles.authTitle}>{t('account.signInTitle')}</h1>
@@ -30,7 +38,7 @@ export function AccountSignedOut() {
           </div>
 
           <Card variant="raised" className={`${styles.authCard} card-clay`}>
-            {isAuthAvailable() ? (
+            {authReady ? (
               <BackendSignIn />
             ) : import.meta.env.DEV ? (
               <LocalSignIn />
@@ -42,10 +50,15 @@ export function AccountSignedOut() {
           <div className={styles.disclaimerWrapper}>
             <Disclaimer compact />
           </div>
-        </div>
+        </motion.div>
 
         {/* Right side: Benefits and Captain Adel in 3D-like space */}
-        <div className={styles.benefitsColumn}>
+        <motion.div
+          className={styles.benefitsColumn}
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ duration: 0.35, ease: [0.16, 1, 0.3, 1], delay: 0.05 }}
+        >
           <CaptainAvatar size="xl" glow pose="wave" decorative className={styles.heroAvatar} />
 
           <Card
@@ -72,7 +85,7 @@ export function AccountSignedOut() {
             </ul>
             <p className={account.note}>{t('account.benefits.local')}</p>
           </Card>
-        </div>
+        </motion.div>
       </div>
     </section>
   );

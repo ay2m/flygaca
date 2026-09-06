@@ -71,6 +71,17 @@ export const config = {
     clientSecret: str("APPLE_OAUTH_CLIENT_SECRET"),
   },
 
+  supabase: {
+    url: str("SUPABASE_URL"),
+    publishableKey: str("SUPABASE_PUBLISHABLE_KEY"),
+    secretKey: str("SUPABASE_SECRET_KEY"),
+    jwksUrl: str(
+      "SUPABASE_JWKS_URL",
+      str("SUPABASE_URL") ? `${str("SUPABASE_URL")}/auth/v1/.well-known/jwks.json` : "",
+    ),
+    jwtSecret: str("SUPABASE_JWT_SECRET", str("SUPABASE_SECRET_KEY")),
+  },
+
   /**
    * The Captain Adel model endpoint. OpenAI chat-completions shape, so it can be
    * pointed at any compatible provider without a code change — Google Gemini by

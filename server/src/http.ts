@@ -9,11 +9,12 @@
  */
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 import { parseCookie } from "cookie";
+import { decodeJwt } from "jose";
 import { config } from "./config.js";
 import { verifySession } from "./session.js";
 import { isAllowedOrigin } from "./gateway-core.js";
 import { csrfVerdict } from "./csrf-core.js";
-import { findUserById, toAuthedUser, type AuthedUser } from "./store.js";
+import { findUserById, findUserByEmail, createUser, toAuthedUser, type AuthedUser } from "./store.js";
 
 declare module "express-serve-static-core" {
   interface Request {
@@ -81,9 +82,34 @@ export const withSession: RequestHandler = (req, _res, next) => {
     const bearer = req.headers.authorization?.startsWith("Bearer ")
       ? req.headers.authorization.slice(7).trim()
       : undefined;
-    const uid = await verifySession(cookies[config.session.cookieName] ?? bearer);
+    const token = cookies[config.session.cookieName] ?? bearer;
+    const uid = await verifySession(token);
     if (uid) {
-      const row = await findUserById(uid);
+      let row = await findUserById(uid);
+      if (!row && token && token.split(".").length === 3) {
+        try {
+          const claims = decodeJwt(token);
+          const email = typeof claims.email === "string" ? claims.email.toLowerCase().trim() : null;
+          if (email) {
+            const meta = (claims.user_metadata as Record<string, unknown>) || {};
+            const displayName =
+              (meta.displayName as string) || (meta.full_name as string) || (meta.name as string) || "";
+            const existing = await findUserByEmail(email);
+            if (existing) {
+              row = existing;
+            } else {
+              row = await createUser({
+                id: uid,
+                email,
+                displayName,
+                emailVerified: Boolean(claims.email_verified),
+              }).catch(() => findUserByEmail(email));
+            }
+          }
+        } catch {
+          // Fall through to anonymous if invalid
+        }
+      }
       if (row) req.user = toAuthedUser(row);
     }
     next();

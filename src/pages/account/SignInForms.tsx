@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { motion, AnimatePresence } from 'framer-motion';
 import { TextField } from '@/components/calc/TextField';
 import { Alert } from '@/components/Alert';
 import { Button } from '@/components/ui/Button';
@@ -8,8 +9,11 @@ import { looksLikeEmail } from '@/calc/app/emailShape';
 import { useSignInForm } from '@/hooks/useSignInForm';
 import { GoogleMark } from './GoogleMark';
 import { AppleMark } from './AppleMark';
+import { GithubMark } from './GithubMark';
+import { DiscordMark } from './DiscordMark';
 import { SignInFormBody } from './SignInFormBody';
 import { SignUpFormBody } from './SignUpFormBody';
+import { MagicLinkFormBody } from './MagicLinkFormBody';
 import styles from './AccountPage.module.css';
 
 export function BackendSignIn() {
@@ -21,19 +25,19 @@ export function BackendSignIn() {
     errors,
     notice,
     mainSiteHref,
-    toggleMode,
+    setMode,
     forgotPassword,
+    sendMagic,
     loginForm,
     signupForm,
     runGoogle,
     runApple,
+    runGithub,
+    runDiscord,
   } = useSignInForm();
 
   const containerClass = `${styles.fadeTransition} ${animating ? styles.animating : ''}`;
 
-  // The general-error band, shared by the sign-in and sign-up forms. On a
-  // domain-authorization failure it also carries the click-through to the
-  // authorized main site.
   const errorAlert = errors.general ? (
     <Alert tone="error" role="alert" icon="⚠">
       {errors.general}
@@ -50,45 +54,174 @@ export function BackendSignIn() {
 
   return (
     <>
-      <div className={styles.oauthButtons}>
-        <Button
+      {/* Multi-Provider OAuth Buttons (Google, Apple, GitHub, Discord) */}
+      <div className={styles.oauthGrid}>
+        <motion.button
           type="button"
-          variant="clayPrimary"
-          icon={<GoogleMark />}
-          className={styles.halfWidth}
+          className={styles.oauthBtn}
           disabled={busy}
           onClick={runGoogle}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-          {t('account.continueGoogle')}
-        </Button>
-        <Button
+          <GoogleMark />
+          <span>Google</span>
+        </motion.button>
+        <motion.button
           type="button"
-          variant="clayPrimary"
-          icon={<AppleMark />}
-          className={styles.halfWidth}
+          className={styles.oauthBtn}
           disabled={busy}
           onClick={runApple}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
         >
-          {t('account.continueApple')}
-        </Button>
+          <AppleMark />
+          <span>Apple</span>
+        </motion.button>
+        <motion.button
+          type="button"
+          className={styles.oauthBtn}
+          disabled={busy}
+          onClick={runGithub}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <GithubMark />
+          <span>GitHub</span>
+        </motion.button>
+        <motion.button
+          type="button"
+          className={styles.oauthBtn}
+          disabled={busy}
+          onClick={runDiscord}
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+        >
+          <DiscordMark />
+          <span>Discord</span>
+        </motion.button>
       </div>
+
       <p className={styles.divider}>{t('account.or')}</p>
 
+      {/* Animated Segmented Tab Switcher */}
+      <nav className={styles.tabStrip} aria-label="Sign-in method">
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${mode === 'in' ? styles.tabBtnActive : ''}`}
+          onClick={() => setMode('in')}
+        >
+          {mode === 'in' && (
+            <motion.span
+              layoutId="authTabPill"
+              className={styles.tabActiveIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <span>{t('account.tabSignIn')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${mode === 'up' ? styles.tabBtnActive : ''}`}
+          onClick={() => setMode('up')}
+        >
+          {mode === 'up' && (
+            <motion.span
+              layoutId="authTabPill"
+              className={styles.tabActiveIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <span>{t('account.tabSignUp')}</span>
+        </button>
+
+        <button
+          type="button"
+          className={`${styles.tabBtn} ${mode === 'magic' ? styles.tabBtnActive : ''}`}
+          onClick={() => setMode('magic')}
+        >
+          {mode === 'magic' && (
+            <motion.span
+              layoutId="authTabPill"
+              className={styles.tabActiveIndicator}
+              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
+            />
+          )}
+          <span>{t('account.tabMagicLink')}</span>
+        </button>
+      </nav>
+
+      {/* Animated Form Body */}
       <div className={containerClass}>
-        {mode === 'in' ? (
-          <SignInFormBody form={loginForm} busy={busy} errorAlert={errorAlert} notice={notice} />
-        ) : (
-          <SignUpFormBody form={signupForm} busy={busy} errorAlert={errorAlert} notice={notice} />
-        )}
+        <AnimatePresence mode="wait">
+          {mode === 'in' && (
+            <motion.div
+              key="signin"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <SignInFormBody form={loginForm} busy={busy} errorAlert={errorAlert} notice={notice} />
+            </motion.div>
+          )}
+
+          {mode === 'up' && (
+            <motion.div
+              key="signup"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <SignUpFormBody form={signupForm} busy={busy} errorAlert={errorAlert} notice={notice} />
+            </motion.div>
+          )}
+
+          {mode === 'magic' && (
+            <motion.div
+              key="magic"
+              initial={{ opacity: 0, y: 6 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -6 }}
+              transition={{ duration: 0.18 }}
+            >
+              <MagicLinkFormBody
+                busy={busy}
+                errorAlert={errorAlert}
+                notice={notice}
+                onSubmit={sendMagic}
+              />
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
 
       <div className={styles.signInLinks}>
-        <button type="button" className={styles.linkBtn} onClick={toggleMode}>
-          {mode === 'in' ? t('account.needAccount') : t('account.haveAccount')}
-        </button>
         {mode === 'in' && (
-          <button type="button" className={styles.linkBtn} disabled={busy} onClick={forgotPassword}>
-            {t('account.forgotPassword')}
+          <>
+            <button type="button" className={styles.linkBtn} onClick={() => setMode('up')}>
+              {t('account.needAccount')}
+            </button>
+            <button
+              type="button"
+              className={styles.linkBtn}
+              disabled={busy}
+              onClick={forgotPassword}
+            >
+              {t('account.forgotPassword')}
+            </button>
+          </>
+        )}
+        {mode === 'up' && (
+          <button type="button" className={styles.linkBtn} onClick={() => setMode('in')}>
+            {t('account.haveAccount')}
+          </button>
+        )}
+        {mode === 'magic' && (
+          <button type="button" className={styles.linkBtn} onClick={() => setMode('in')}>
+            {t('account.haveAccount')}
           </button>
         )}
       </div>

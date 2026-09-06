@@ -44,6 +44,7 @@ export interface Profile {
   lastFlightReview: string;
   /** One of USER_ROLES, or '' until chosen. */
   role: string;
+  avatarUrl?: string;
 }
 
 export interface Flight {
@@ -116,6 +117,7 @@ const DEFAULT_PROFILE: Profile = {
   medicalExpiry: '',
   lastFlightReview: '',
   role: '',
+  avatarUrl: '',
 };
 
 function readJson<T>(key: string, fallback: T): T {
@@ -298,6 +300,7 @@ function connectAuth(): void {
           ...state.profile,
           email: user.email ?? state.profile.email,
           displayName: user.displayName ?? state.profile.displayName,
+          avatarUrl: user.avatarUrl ?? state.profile.avatarUrl ?? '',
         },
       });
       // Start syncing this user's study-progress projection (best-effort; a no-op

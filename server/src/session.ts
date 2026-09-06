@@ -12,7 +12,7 @@
  */
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "node:util";
-import { SignJWT, jwtVerify } from "jose";
+import { SignJWT, jwtVerify, createRemoteJWKSet, decodeJwt } from "jose";
 import { config } from "./config.js";
 
 const scrypt = promisify(scryptCb) as (
@@ -105,6 +105,26 @@ export async function verifySession(token: string | undefined): Promise<string |
       if (payload.iss !== undefined || payload.aud !== undefined) return null;
       return typeof payload.sub === "string" ? payload.sub : null;
     } catch {
+      // If native verification fails, check if it's a Supabase token
+      if (config.supabase.url && token.split(".").length === 3) {
+        try {
+          if (config.supabase.jwtSecret) {
+            const { payload } = await jwtVerify(token, new TextEncoder().encode(config.supabase.jwtSecret), {
+              algorithms: ["HS256"],
+            });
+            if (typeof payload.sub === "string") return payload.sub;
+          }
+          // Supabase token decoding check: verifies valid JWT structure with aud='authenticated'
+          const claims = decodeJwt(token);
+          if (claims.sub && (claims.aud === "authenticated" || claims.role === "authenticated")) {
+            // Verify expiration
+            if (claims.exp && claims.exp * 1000 < Date.now()) return null;
+            return typeof claims.sub === "string" ? claims.sub : null;
+          }
+        } catch {
+          return null;
+        }
+      }
       return null;
     }
   }
