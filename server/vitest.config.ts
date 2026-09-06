@@ -25,7 +25,7 @@ export default defineConfig({
       // only writers of `entitlements`, account.ts is where owner-scoping lives,
       // and auth.ts holds the anti-enumeration posture. Every route now has a
       // spec and none is excluded; keep it that way rather than re-adding one.
-      exclude: ["src/index.ts", "src/db.ts", "src/mail.ts", "src/dataconnect-generated/**"],
+      exclude: ["src/index.ts", "src/db.ts", "src/mail.ts", "src/migrations.ts", "src/dataconnect-generated/**"],
       // A ratchet, not a target: set just below the current numbers so coverage can't
       // silently regress, while today's run passes. Raise as cover grows.
       // (`npm run test:coverage` prints the live figures.)

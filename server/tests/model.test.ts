@@ -186,4 +186,65 @@ describe("streamChat", () => {
     await collect(streamChat({ model: "m", system: "S", message: "q" }));
     expect(fetchMock.mock.calls[0][0]).toBe("https://model.example/v1/chat/completions");
   });
+
+  it("yields remaining buffer token if stream ends without [DONE]", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => sseResponse([frame("Last token")])),
+    );
+    const { streamChat } = await load();
+    const out = await collect(streamChat({ model: "gemini", system: "S", message: "q" }));
+    expect(out).toEqual(["Last token"]);
+  });
+
+  it("handles non-200 with no body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(null, { status: 500 })),
+    );
+    const { streamChat } = await load();
+    await expect(collect(streamChat({ model: "gemini", system: "S", message: "q" }))).rejects.toThrow(
+      /500/,
+    );
+  });
+
+  it("handles res.text() rejection when reading error body", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: false,
+        status: 500,
+        body: {},
+        text: () => Promise.reject(new Error("cannot read body")),
+      })),
+    );
+    const { streamChat } = await load();
+    await expect(collect(streamChat({ model: "gemini", system: "S", message: "q" }))).rejects.toThrow(
+      /500/,
+    );
+  });
+
+  it("catches cancellation errors when reader.cancel() fails", async () => {
+    const reader = {
+      read: vi
+        .fn()
+        .mockResolvedValueOnce({ done: false, value: new TextEncoder().encode(frame("1")) })
+        .mockResolvedValueOnce({ done: true, value: undefined }),
+      cancel: vi.fn().mockRejectedValue(new Error("cancel failed")),
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({
+        ok: true,
+        status: 200,
+        body: {
+          getReader: () => reader,
+        },
+      })),
+    );
+    const { streamChat } = await load();
+    const out = await collect(streamChat({ model: "gemini", system: "S", message: "q" }));
+    expect(out).toEqual(["1"]);
+    expect(reader.cancel).toHaveBeenCalled();
+  });
 });
