@@ -226,7 +226,7 @@ describe("askRemote", () => {
     );
 
     const { askRemote } = await loadRemote();
-    const promise = askRemote({ message: "q" }, { ...cfg, timeoutMs: 100 });
+    void askRemote({ message: "q" }, { ...cfg, timeoutMs: 100 });
     vi.advanceTimersByTime(150);
     expect(aborted).toBe(true);
     vi.useRealTimers();
