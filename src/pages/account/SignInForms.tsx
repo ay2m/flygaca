@@ -1,6 +1,17 @@
+/**
+ * Redesigned sign-in/sign-up forms with magic link as primary flow.
+ *
+ * Flow:
+ * 1. Email entry (magic link default)
+ * 2. Verification (magic link) or password entry (if switching modes)
+ * 3. OAuth as secondary fallback
+ *
+ * Mobile-optimized: single-column, large touch targets, minimal choices visible at once.
+ */
+
 import { useState, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { TextField } from '@/components/calc/TextField';
 import { Alert } from '@/components/Alert';
 import { Button } from '@/components/ui/Button';
@@ -10,232 +21,258 @@ import { useSignInForm } from '@/hooks/useSignInForm';
 import { getOAuthConfig } from '@/lib/services/auth';
 import { GoogleMark } from './GoogleMark';
 import { AppleMark } from './AppleMark';
-import { GithubMark } from './GithubMark';
-import { DiscordMark } from './DiscordMark';
 import { SignInFormBody } from './SignInFormBody';
 import { SignUpFormBody } from './SignUpFormBody';
 import { MagicLinkFormBody } from './MagicLinkFormBody';
 import styles from './AccountPage.module.css';
 
+type AuthStep = 'email' | 'magic' | 'password' | 'signup';
+
 export function BackendSignIn() {
   const { t } = useTranslation();
-  const [oauthConfig, setOauthConfig] = useState<{ google: { configured: boolean }; apple: { configured: boolean } } | null>(null);
+  const [step, setStep] = useState<AuthStep>('email');
+  const [email, setEmail] = useState('');
+  const [oauthConfig, setOauthConfig] = useState<{
+    google: { configured: boolean };
+    apple: { configured: boolean };
+  } | null>(null);
 
   useEffect(() => {
     void getOAuthConfig().then(setOauthConfig);
   }, []);
+
   const {
-    mode,
-    animating,
     busy,
     errors,
     notice,
-    mainSiteHref,
-    setMode,
-    forgotPassword,
-    sendMagic,
     loginForm,
     signupForm,
+    sendMagic,
     runGoogle,
     runApple,
-    runGithub,
-    runDiscord,
   } = useSignInForm();
 
-  const containerClass = `${styles.fadeTransition} ${animating ? styles.animating : ''}`;
+  const handleEmailSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    const trimmed = email.trim();
+    if (!looksLikeEmail(trimmed)) return;
+    setEmail(trimmed);
+    setStep('magic');
+  };
+
+  const handleSwitchToPassword = () => {
+    setStep('password');
+  };
+
+  const handleSwitchToSignup = () => {
+    setStep('signup');
+  };
+
+  const handleBack = () => {
+    setStep('email');
+    loginForm.resetForm();
+    signupForm.resetForm();
+  };
 
   const errorAlert = errors.general ? (
     <Alert tone="error" role="alert" icon="⚠">
       {errors.general}
-      {mainSiteHref && (
-        <>
-          {' '}
-          <a className={styles.alertLink} href={mainSiteHref}>
-            {t('account.errors.useMainSite')}
-          </a>
-        </>
-      )}
+    </Alert>
+  ) : null;
+
+  const noticeAlert = notice ? (
+    <Alert tone="success" role="status" icon="✓">
+      {notice}
     </Alert>
   ) : null;
 
   return (
-    <>
-      {/* Multi-Provider OAuth Buttons (Google, Apple, GitHub, Discord) */}
-      <div className={styles.oauthGrid}>
-        {oauthConfig?.google.configured && (
-          <motion.button
-            type="button"
-            className={styles.oauthBtn}
-            disabled={busy}
-            onClick={runGoogle}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
+    <div className={styles.signInContainer}>
+      {errorAlert || noticeAlert}
+
+      <div className={styles.stepContainer}>
+        {/* Step 1: Email Entry - Primary Flow */}
+        {step === 'email' && (
+          <motion.form
+            onSubmit={handleEmailSubmit}
+            className={styles.stepContent}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
           >
-            <GoogleMark />
-            <span>Google</span>
-          </motion.button>
-        )}
-        {oauthConfig?.apple.configured && (
-          <motion.button
-            type="button"
-            className={styles.oauthBtn}
-            disabled={busy}
-            onClick={runApple}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.98 }}
-          >
-            <AppleMark />
-            <span>Apple</span>
-          </motion.button>
-        )}
-        <motion.button
-          type="button"
-          className={styles.oauthBtn}
-          disabled={busy}
-          onClick={runGithub}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <GithubMark />
-          <span>GitHub</span>
-        </motion.button>
-        <motion.button
-          type="button"
-          className={styles.oauthBtn}
-          disabled={busy}
-          onClick={runDiscord}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-        >
-          <DiscordMark />
-          <span>Discord</span>
-        </motion.button>
-      </div>
+            <div className={styles.stepHeader}>
+              <h2 className={styles.stepTitle}>{t('account.signInTitle')}</h2>
+              <p className={styles.stepSubtitle}>{t('account.signInIntro')}</p>
+            </div>
 
-      <p className={styles.divider}>{t('account.or')}</p>
-
-      {/* Animated Segmented Tab Switcher */}
-      <nav className={styles.tabStrip} aria-label="Sign-in method">
-        <button
-          type="button"
-          className={`${styles.tabBtn} ${mode === 'in' ? styles.tabBtnActive : ''}`}
-          onClick={() => setMode('in')}
-        >
-          {mode === 'in' && (
-            <motion.span
-              layoutId="authTabPill"
-              className={styles.tabActiveIndicator}
-              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-            />
-          )}
-          <span>{t('account.tabSignIn')}</span>
-        </button>
-
-        <button
-          type="button"
-          className={`${styles.tabBtn} ${mode === 'up' ? styles.tabBtnActive : ''}`}
-          onClick={() => setMode('up')}
-        >
-          {mode === 'up' && (
-            <motion.span
-              layoutId="authTabPill"
-              className={styles.tabActiveIndicator}
-              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-            />
-          )}
-          <span>{t('account.tabSignUp')}</span>
-        </button>
-
-        <button
-          type="button"
-          className={`${styles.tabBtn} ${mode === 'magic' ? styles.tabBtnActive : ''}`}
-          onClick={() => setMode('magic')}
-        >
-          {mode === 'magic' && (
-            <motion.span
-              layoutId="authTabPill"
-              className={styles.tabActiveIndicator}
-              transition={{ type: 'spring', stiffness: 450, damping: 35 }}
-            />
-          )}
-          <span>{t('account.tabMagicLink')}</span>
-        </button>
-      </nav>
-
-      {/* Animated Form Body */}
-      <div className={containerClass}>
-        <AnimatePresence mode="wait">
-          {mode === 'in' && (
-            <motion.div
-              key="signin"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
-              <SignInFormBody form={loginForm} busy={busy} errorAlert={errorAlert} notice={notice} />
-            </motion.div>
-          )}
-
-          {mode === 'up' && (
-            <motion.div
-              key="signup"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
-              <SignUpFormBody form={signupForm} busy={busy} errorAlert={errorAlert} notice={notice} />
-            </motion.div>
-          )}
-
-          {mode === 'magic' && (
-            <motion.div
-              key="magic"
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -6 }}
-              transition={{ duration: 0.18 }}
-            >
-              <MagicLinkFormBody
-                busy={busy}
-                errorAlert={errorAlert}
-                notice={notice}
-                onSubmit={sendMagic}
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-
-      <div className={styles.signInLinks}>
-        {mode === 'in' && (
-          <>
-            <button type="button" className={styles.linkBtn} onClick={() => setMode('up')}>
-              {t('account.needAccount')}
-            </button>
-            <button
-              type="button"
-              className={styles.linkBtn}
+            <TextField
+              label={t('account.email')}
+              type="email"
+              placeholder="you@example.com"
+              value={email}
+              onChange={setEmail}
               disabled={busy}
-              onClick={forgotPassword}
+              autoFocus
+              className={styles.emailInput}
+            />
+
+            <Button
+              type="submit"
+              variant="primary"
+              className={styles.submitBtn}
+              disabled={!email.trim() || busy}
+              aria-busy={busy}
             >
-              {t('account.forgotPassword')}
-            </button>
-          </>
+              {t('account.continueMagic') || 'Continue with Magic Link'}
+            </Button>
+
+            <div className={styles.divider}>{t('account.or')}</div>
+
+            {/* OAuth Options - Secondary */}
+            {(oauthConfig?.google.configured ||
+              oauthConfig?.apple.configured) && (
+              <div className={styles.oauthGrid}>
+                {oauthConfig?.google.configured && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<GoogleMark />}
+                    disabled={busy}
+                    onClick={runGoogle}
+                    className={styles.oauthBtn}
+                  >
+                    Google
+                  </Button>
+                )}
+                {oauthConfig?.apple.configured && (
+                  <Button
+                    type="button"
+                    variant="secondary"
+                    icon={<AppleMark />}
+                    disabled={busy}
+                    onClick={runApple}
+                    className={styles.oauthBtn}
+                  >
+                    Apple
+                  </Button>
+                )}
+              </div>
+            )}
+
+            <div className={styles.altOptions}>
+              <button
+                type="button"
+                className={styles.altBtn}
+                onClick={handleSwitchToPassword}
+                disabled={busy}
+              >
+                {t('account.usePassword') || 'Use Password Instead'}
+              </button>
+              <button
+                type="button"
+                className={styles.altBtn}
+                onClick={handleSwitchToSignup}
+                disabled={busy}
+              >
+                {t('account.createAccount') || 'Create Account'}
+              </button>
+            </div>
+          </motion.form>
         )}
-        {mode === 'up' && (
-          <button type="button" className={styles.linkBtn} onClick={() => setMode('in')}>
-            {t('account.haveAccount')}
-          </button>
+
+        {/* Step 2: Magic Link Verification */}
+        {step === 'magic' && (
+          <motion.div
+            className={styles.stepContent}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+          >
+            <MagicLinkFormBody
+              email={email}
+              onBack={handleBack}
+              onSwitchToPassword={handleSwitchToPassword}
+            />
+          </motion.div>
         )}
-        {mode === 'magic' && (
-          <button type="button" className={styles.linkBtn} onClick={() => setMode('in')}>
-            {t('account.haveAccount')}
-          </button>
+
+        {/* Step 3: Password Sign-In */}
+        {step === 'password' && (
+          <motion.form
+            className={styles.stepContent}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              loginForm.onSubmit();
+            }}
+          >
+            <div className={styles.stepHeader}>
+              <h2 className={styles.stepTitle}>{t('account.signIn')}</h2>
+            </div>
+
+            <SignInFormBody
+              form={loginForm}
+              busy={busy}
+              errorAlert={null}
+              notice={notice}
+            />
+
+            <div className={styles.stepFooter}>
+              <button
+                type="button"
+                className={styles.backBtn}
+                onClick={handleBack}
+                disabled={busy}
+              >
+                ← {t('account.back') || 'Back'}
+              </button>
+            </div>
+          </motion.form>
+        )}
+
+        {/* Step 4: Sign-Up */}
+        {step === 'signup' && (
+          <motion.form
+            className={styles.stepContent}
+            initial={{ opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            transition={{ duration: 0.2 }}
+            onSubmit={(e) => {
+              e.preventDefault();
+              signupForm.onSubmit();
+            }}
+          >
+            <div className={styles.stepHeader}>
+              <h2 className={styles.stepTitle}>{t('account.createAccount')}</h2>
+            </div>
+
+            <SignUpFormBody
+              form={signupForm}
+              busy={busy}
+              errorAlert={null}
+              notice={notice}
+            />
+
+            <div className={styles.stepFooter}>
+              <button
+                type="button"
+                className={styles.backBtn}
+                onClick={handleBack}
+                disabled={busy}
+              >
+                ← {t('account.back') || 'Back'}
+              </button>
+            </div>
+          </motion.form>
         )}
       </div>
-    </>
+    </div>
   );
 }
 
@@ -244,55 +281,53 @@ export function LocalSignIn() {
   const [email, setEmail] = useState('');
   const [name, setName] = useState('');
   const [error, setError] = useState('');
+
   return (
-    <>
-      <form
-        className={styles.fields}
-        onSubmit={(e) => {
-          e.preventDefault();
-          const trimmed = email.trim();
-          if (!trimmed) return;
-          if (!looksLikeEmail(trimmed)) {
-            setError(t('account.errors.invalidEmail'));
-            return;
-          }
-          setError('');
-          signIn(trimmed, name);
+    <form
+      className={styles.localForm}
+      onSubmit={(e) => {
+        e.preventDefault();
+        const trimmed = email.trim();
+        if (!trimmed) return;
+        if (!looksLikeEmail(trimmed)) {
+          setError(t('account.errors.invalidEmail'));
+          return;
+        }
+        setError('');
+        signIn(trimmed, name);
+      }}
+    >
+      <div className={styles.stepHeader}>
+        <h2 className={styles.stepTitle}>{t('account.signIn')}</h2>
+        <p className={styles.stepSubtitle}>{t('account.localNote')}</p>
+      </div>
+
+      <TextField
+        label={t('account.email')}
+        type="email"
+        placeholder="you@example.com"
+        value={email}
+        onChange={(v) => {
+          setEmail(v);
+          if (error) setError('');
         }}
-      >
-        <TextField
-          label={t('account.email')}
-          value={email}
-          onChange={(v) => {
-            setEmail(v);
-            if (error) setError('');
-          }}
-          type="email"
-          placeholder="you@example.com"
-          error={error}
-        />
-        <TextField label={t('account.name')} value={name} onChange={setName} />
-        <Button
-          type="submit"
-          variant="clayPrimary"
-          className={styles.fullWidth}
-          disabled={!email.trim()}
-        >
-          {t('account.signIn')}
-        </Button>
-      </form>
-      <p className={styles.note}>{t('account.localNote')}</p>
-    </>
+        error={error}
+      />
+
+      <TextField
+        label={t('account.name')}
+        placeholder={t('account.displayName') || 'Your name'}
+        value={name}
+        onChange={setName}
+      />
+
+      <Button type="submit" variant="primary" className={styles.submitBtn}>
+        {t('account.signIn')}
+      </Button>
+    </form>
   );
 }
 
-/**
- * Shown in a PRODUCTION build when the auth backend isn't configured. It deliberately
- * offers NO form and mints NO session — a config-less deploy must never present a
- * working "email + name" sign-in that looks like a real account. The email+name
- * `LocalSignIn` is a local-first dev convenience only (see the chooser in
- * AccountSignedOut).
- */
 export function AuthUnavailable() {
   const { t } = useTranslation();
   return (

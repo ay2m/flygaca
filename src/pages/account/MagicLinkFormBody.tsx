@@ -1,62 +1,44 @@
-import { useState, type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
-import { TextField } from '@/components/calc/TextField';
 import { Alert } from '@/components/Alert';
 import { Button } from '@/components/ui/Button';
-import { looksLikeEmail } from '@/calc/app/emailShape';
 import styles from './AccountPage.module.css';
 
 interface MagicLinkFormBodyProps {
-  busy: boolean;
-  errorAlert: ReactNode;
-  notice: string;
-  onSubmit: (email: string) => Promise<void>;
+  email: string;
+  busy?: boolean;
+  errorAlert?: ReactNode;
+  notice?: string;
+  onBack: () => void;
+  onSwitchToPassword: () => void;
+  onSubmit?: (email: string) => Promise<void>;
 }
 
-/** Passwordless Magic Link email authentication form. */
+/** Magic Link verification step in the redesigned flow. */
 export function MagicLinkFormBody({
-  busy,
+  email,
+  busy = false,
   errorAlert,
   notice,
+  onBack,
+  onSwitchToPassword,
   onSubmit,
 }: MagicLinkFormBodyProps) {
   const { t } = useTranslation();
-  const [email, setEmail] = useState('');
-  const [error, setError] = useState('');
-
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    const trimmed = email.trim();
-    if (!trimmed) {
-      setError(t('account.errors.invalidEmail'));
-      return;
-    }
-    if (!looksLikeEmail(trimmed)) {
-      setError(t('account.errors.invalidEmail'));
-      return;
-    }
-    setError('');
-    await onSubmit(trimmed);
-  }
 
   return (
-    <form className={styles.fields} onSubmit={(e) => void handleSubmit(e)} noValidate>
+    <div className={styles.stepContent}>
+      <div className={styles.stepHeader}>
+        <h2 className={styles.stepTitle}>{t('account.checkEmail') || 'Check Your Email'}</h2>
+        <p className={styles.stepSubtitle}>
+          {t('account.magicLinkSent', { email }) ||
+            `We sent a magic link to ${email}. Click it to sign in.`}
+        </p>
+      </div>
+
       <div className={styles.magicLinkInfo}>
         <p className={styles.magicLinkDesc}>{t('account.magicLinkDesc')}</p>
       </div>
-
-      <TextField
-        label={t('account.email')}
-        value={email}
-        onChange={(v) => {
-          setEmail(v);
-          if (error) setError('');
-        }}
-        type="email"
-        autoComplete="email"
-        placeholder="you@example.com"
-        error={error || undefined}
-      />
 
       {errorAlert}
 
@@ -66,15 +48,22 @@ export function MagicLinkFormBody({
         </Alert>
       )}
 
-      <Button
-        type="submit"
-        variant="clayPrimary"
-        className={styles.fullWidth}
-        aria-busy={busy || undefined}
-        disabled={busy || !email.trim()}
-      >
-        {t('account.sendMagicLink')}
-      </Button>
-    </form>
+      <div className={styles.altOptions}>
+        <button
+          type="button"
+          className={styles.altBtn}
+          onClick={onSwitchToPassword}
+          disabled={busy}
+        >
+          {t('account.usePassword') || 'Use Password Instead'}
+        </button>
+      </div>
+
+      <div className={styles.stepFooter}>
+        <button type="button" className={styles.backBtn} onClick={onBack} disabled={busy}>
+          ← {t('account.back') || 'Back'}
+        </button>
+      </div>
+    </div>
   );
 }

@@ -857,3 +857,125 @@
   line-height: var(--lh-snug);
 }
 
+/* ── REDESIGNED SIGN-IN FLOW (Mobile-First, Magic Link Primary) ── */
+
+.signInContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.stepContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+  width: 100%;
+}
+
+.stepContent {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-5);
+  width: 100%;
+}
+
+.stepHeader {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.stepTitle {
+  margin: 0;
+  font-size: var(--fs-h2);
+  font-weight: var(--fw-bold);
+  letter-spacing: var(--tracking-tight);
+  color: var(--text);
+}
+
+.stepSubtitle {
+  margin: 0;
+  font-size: var(--fs-base);
+  color: var(--text-muted);
+  line-height: var(--lh-relaxed);
+}
+
+.emailInput {
+  width: 100%;
+}
+
+.submitBtn {
+  width: 100%;
+  min-height: 44px;
+  font-size: var(--fs-base);
+  font-weight: var(--fw-semibold);
+}
+
+.altOptions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.altBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--link);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease);
+  text-decoration: underline;
+}
+
+.altBtn:hover:not(:disabled) {
+  color: var(--brand-hover);
+}
+
+.altBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.stepFooter {
+  display: flex;
+  gap: var(--space-3);
+  margin-top: var(--space-2);
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: var(--space-2) var(--space-3);
+  background: none;
+  border: none;
+  color: var(--link);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-medium);
+  cursor: pointer;
+  transition: color var(--dur) var(--ease);
+}
+
+.backBtn:hover:not(:disabled) {
+  color: var(--brand-hover);
+  text-decoration: underline;
+}
+
+.backBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.localForm {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
