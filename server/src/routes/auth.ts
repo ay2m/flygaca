@@ -14,7 +14,7 @@
  * are logged for PDPL compliance and brute-force detection. Failed login attempts trigger
  * account lockout after N failures within a time window.
  */
-import { Router, type Response } from "express";
+import { Router, type Response, type Request, type NextFunction, type RequestHandler } from "express";
 import { randomBytes } from "node:crypto";
 import rateLimit from "express-rate-limit";
 import { config } from "../config.js";
@@ -67,17 +67,17 @@ export const authRouter: Router = Router();
 
 /** Brute-force guard on the credential-checking routes. */
 const skipRateLimit = process.env.SKIP_RATE_LIMIT_IN_TESTS;
-const credentialLimiter = skipRateLimit
-  ? ((_req: any, _res: any, next: any) => {
-      next();
-    }) as any
+const credentialLimiter: RequestHandler = skipRateLimit
+  ? (_req: Request, _res: Response, next: NextFunction) => {
+    next();
+  }
   : rateLimit({
-      windowMs: 15 * 60 * 1000,
-      limit: 20,
-      standardHeaders: "draft-7",
-      legacyHeaders: false,
-      message: { error: "auth/too-many-requests" },
-    });
+    windowMs: 15 * 60 * 1000,
+    limit: 20,
+    standardHeaders: "draft-7",
+    legacyHeaders: false,
+    message: { error: "auth/too-many-requests" },
+  });
 
 const VERIFY_TTL_MIN = 60 * 24;
 const RESET_TTL_MIN = 60;
