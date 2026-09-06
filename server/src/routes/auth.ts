@@ -14,7 +14,7 @@
  * are logged for PDPL compliance and brute-force detection. Failed login attempts trigger
  * account lockout after N failures within a time window.
  */
-import { Router, type Response, type Request } from "express";
+import { Router, type Response } from "express";
 import { randomBytes } from "node:crypto";
 import rateLimit from "express-rate-limit";
 import { config } from "../config.js";
@@ -42,16 +42,12 @@ import {
   toAuthedUser,
   logAuthEvent,
   recordAuthFailure,
-  countRecentLoginFailures,
   isAccountLocked,
-  lockAccount,
   recordLastLogin,
   type UserRow,
 } from "../store.js";
 import { mayLinkGoogleToExistingAccount } from "../auth-core.js";
 import {
-  defaultBruteForcePolicy,
-  shouldLockAccount,
   getClientIp,
   getUserAgent,
 } from "../audit-core.js";

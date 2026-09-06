@@ -619,12 +619,12 @@ export async function countRecentLoginFailures(
   userId: string,
   windowMs: number = 15 * 60 * 1000,
 ): Promise<number> {
-  const res = await query(
+  const rows = await query(
     `SELECT COUNT(*) as count FROM auth_failures
      WHERE user_id = $1 AND event_type = 'login' AND attempt_at > now() - $2::interval`,
     [userId, `${Math.ceil(windowMs / 1000)} seconds`],
   );
-  return res.rows[0]?.count ?? 0;
+  return rows[0]?.count ?? 0;
 }
 
 /**
@@ -635,12 +635,12 @@ export async function countRecentRegistrationAttempts(
   clientIp: string,
   windowMs: number = 15 * 60 * 1000,
 ): Promise<number> {
-  const res = await query(
+  const rows = await query(
     `SELECT COUNT(*) as count FROM auth_failures
      WHERE client_ip = $1::inet AND event_type = 'register' AND attempt_at > now() - $2::interval`,
     [clientIp, `${Math.ceil(windowMs / 1000)} seconds`],
   );
-  return res.rows[0]?.count ?? 0;
+  return rows[0]?.count ?? 0;
 }
 
 /** Lock an account temporarily due to too many failed login attempts. */
@@ -655,12 +655,12 @@ export async function lockAccount(userId: string, until: Date): Promise<void> {
 
 /** Check if an account is currently locked. */
 export async function isAccountLocked(userId: string): Promise<boolean> {
-  const res = await query(
+  const rows = await query(
     `SELECT locked_until FROM account_security WHERE user_id = $1`,
     [userId],
   );
-  if (!res.rows.length) return false;
-  const lockedUntil = res.rows[0].locked_until;
+  if (!rows.length) return false;
+  const lockedUntil = rows[0].locked_until;
   return lockedUntil ? new Date(lockedUntil) > new Date() : false;
 }
 

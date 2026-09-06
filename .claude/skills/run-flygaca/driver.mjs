@@ -32,7 +32,10 @@ const SHOTS = flag('shots', join(process.env.TMPDIR || '/tmp', 'flygaca-shots'))
 
 await mkdir(SHOTS, { recursive: true });
 
-const browser = await chromium.launch({ headless: !has('headed') });
+const browser = await chromium.launch({
+  headless: !has('headed'),
+  executablePath: '/opt/pw-browsers/chromium',
+});
 const context = await browser.newContext({ viewport: { width: 1280, height: 900 } });
 const page = await context.newPage();
 
