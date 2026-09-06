@@ -88,3 +88,6 @@ public/data/library-shards/
 
 # Metrics collection (git-ignored)
 .stats.json
+
+# Supabase CLI local cache
+supabase/.temp/
