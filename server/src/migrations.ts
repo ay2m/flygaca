@@ -5,7 +5,17 @@ interface Migration {
   sql: string;
 }
 
-const MIGRATIONS: Migration[] = [
+/**
+ * Exported so `tests/migrations.test.ts` can pin it against the canonical
+ * `server/migrations/*.sql` files — this array is a serverless-friendly copy
+ * (inlined so it ships in the function bundle without a filesystem read) and
+ * has drifted from the files before: 0004/0005 shipped as `.sql` files that
+ * this array never picked up, so every `/api/auth/register` and
+ * `/api/auth/login` call 500'd on a deploy whose schema came only from this
+ * endpoint (`INSERT INTO auth_events …` against a table that was never
+ * created). Add new entries here in the same PR that adds the `.sql` file.
+ */
+export const MIGRATIONS: Migration[] = [
   {
     name: "0001_init.sql",
     sql: `
@@ -329,6 +339,77 @@ CREATE TABLE IF NOT EXISTS org_analytics_summary (
 );
 `,
   },
+  {
+    name: "0004_auth_audit_trail.sql",
+    sql: `
+CREATE TABLE IF NOT EXISTS auth_events (
+  id          uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id     uuid,
+  event_type  text NOT NULL CHECK (event_type IN (
+    'register', 'login', 'logout', 'password-reset-request', 'password-reset-confirm',
+    'email-verify-request', 'email-verify-confirm', 'google-link', 'apple-link',
+    'oauth-google-signin', 'oauth-apple-signin', 'passwordless-signin-request',
+    'passwordless-signup-request', 'passwordless-verify'
+  )),
+  result      text NOT NULL CHECK (result IN ('success', 'failed', 'blocked')),
+  reason      text,
+  client_ip   inet,
+  user_agent  text,
+  created_at  timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS auth_events_user_idx ON auth_events (user_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS auth_events_type_idx ON auth_events (event_type, created_at DESC);
+CREATE INDEX IF NOT EXISTS auth_events_client_ip_idx ON auth_events (client_ip, created_at DESC);
+
+CREATE TABLE IF NOT EXISTS auth_failures (
+  id         uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  email      citext,
+  user_id    uuid,
+  client_ip  inet NOT NULL,
+  event_type text NOT NULL,
+  attempt_at timestamptz NOT NULL DEFAULT now(),
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+  CHECK (email IS NOT NULL OR user_id IS NOT NULL)
+);
+
+CREATE INDEX IF NOT EXISTS auth_failures_email_idx ON auth_failures (email, attempt_at DESC);
+CREATE INDEX IF NOT EXISTS auth_failures_user_idx ON auth_failures (user_id, attempt_at DESC);
+CREATE INDEX IF NOT EXISTS auth_failures_ip_idx ON auth_failures (client_ip, attempt_at DESC);
+
+CREATE TABLE IF NOT EXISTS account_security (
+  user_id       uuid PRIMARY KEY REFERENCES users(id) ON DELETE CASCADE,
+  locked_until  timestamptz,
+  last_login_at timestamptz,
+  suspicious    boolean NOT NULL DEFAULT false,
+  breach_notified_at timestamptz,
+  updated_at    timestamptz NOT NULL DEFAULT now()
+);
+`,
+  },
+  {
+    name: "0005_passwordless_signin.sql",
+    sql: `
+CREATE TABLE IF NOT EXISTS passwordless_tokens (
+  id              uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  digest          text NOT NULL UNIQUE,
+  email           citext NOT NULL,
+  user_id         uuid,
+  code            text,
+  code_display    text,
+  purpose         text NOT NULL CHECK (purpose IN ('signin', 'signup')),
+  created_at      timestamptz NOT NULL DEFAULT now(),
+  expires_at      timestamptz NOT NULL,
+  used_at         timestamptz,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS passwordless_tokens_email_idx ON passwordless_tokens (email, created_at DESC);
+CREATE INDEX IF NOT EXISTS passwordless_tokens_user_idx ON passwordless_tokens (user_id, created_at DESC) WHERE used_at IS NULL;
+CREATE INDEX IF NOT EXISTS passwordless_tokens_expires_idx ON passwordless_tokens (expires_at) WHERE used_at IS NULL;
+`,
+  },
 ];
 
 export async function runMigrations(): Promise<{
@@ -348,9 +429,7 @@ export async function runMigrations(): Promise<{
       )
     `);
 
-    const { rows } = await client.query<{ name: string }>(
-      "SELECT name FROM schema_migrations"
-    );
+    const { rows } = await client.query<{ name: string }>("SELECT name FROM schema_migrations");
     const appliedSet = new Set(rows.map((r) => r.name));
     const newlyApplied: string[] = [];
     const alreadyApplied: string[] = [];
@@ -364,10 +443,7 @@ export async function runMigrations(): Promise<{
       await client.query("BEGIN");
       try {
         await client.query(migration.sql);
-        await client.query(
-          "INSERT INTO schema_migrations (name) VALUES ($1)",
-          [migration.name]
-        );
+        await client.query("INSERT INTO schema_migrations (name) VALUES ($1)", [migration.name]);
         await client.query("COMMIT");
         newlyApplied.push(migration.name);
       } catch (err) {
