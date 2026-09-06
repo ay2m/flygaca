@@ -12,7 +12,7 @@
  */
 import { randomBytes, scrypt as scryptCb, timingSafeEqual, createHash } from "node:crypto";
 import { promisify } from "node:util";
-import { SignJWT, jwtVerify, createRemoteJWKSet, decodeJwt } from "jose";
+import { SignJWT, jwtVerify, decodeJwt } from "jose";
 import { config } from "./config.js";
 
 const scrypt = promisify(scryptCb) as (
