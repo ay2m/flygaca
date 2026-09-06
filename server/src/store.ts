@@ -734,7 +734,7 @@ export async function lockAccount(userId: string, until: Date): Promise<void> {
 /** Check if an account is currently locked. */
 export async function isAccountLocked(userId: string): Promise<boolean> {
   const rows = await query(
-    `SELECT locked_until FROM account_security WHERE user_id = $1`,
+    "SELECT locked_until FROM account_security WHERE user_id = $1",
     [userId],
   );
   if (!rows.length) return false;
@@ -744,7 +744,7 @@ export async function isAccountLocked(userId: string): Promise<boolean> {
 
 /** Unlock an account when the lockout period expires. */
 export async function unlockAccount(userId: string): Promise<void> {
-  await query(`UPDATE account_security SET locked_until = NULL WHERE user_id = $1`, [userId]);
+  await query("UPDATE account_security SET locked_until = NULL WHERE user_id = $1", [userId]);
 }
 
 /** Record the last successful login time for an account. */

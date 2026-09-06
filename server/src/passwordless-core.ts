@@ -23,13 +23,13 @@ export function generatePasswordlessToken(): {
   token: string;
   code: string;
   codeDisplay: string;
-} {
+  } {
   const tokenBytes = randomBytes(MAGIC_LINK_TOKEN_BYTES);
   const codeBytes = randomBytes(ONE_TIME_CODE_BYTES);
 
   const token = tokenBytes.toString("hex");
   const codeNum = codeBytes.readUIntBE(0, 3); // 24-bit unsigned int
-  const code = String(codeNum).padStart(6, "0");
+  const code = String(codeNum % 1_000_000).padStart(6, "0");
   const codeDisplay = `${code.slice(0, 3)} ${code.slice(3, 6)}`; // "123 456" format
 
   return { token, code, codeDisplay };

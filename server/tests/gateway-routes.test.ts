@@ -541,6 +541,19 @@ describe("POST /api/feedback", () => {
     expect(res.status).toBe(204);
     spy.mockRestore();
   });
+
+  it("403s when authentication throws AuthError on feedback", async () => {
+    const { AuthError } = await import("../src/gateway.js");
+    verifySession.mockRejectedValueOnce(new AuthError("bad token"));
+    const res = await request(app)
+      .post("/api/feedback")
+      .set("authorization", "Bearer bad")
+      .set("X-Forwarded-For", nextIp())
+      .send({ rating: "up" });
+
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual({ error: "bad token" });
+  });
 });
 
 describe("notFoundHandler + errorHandler", () => {
