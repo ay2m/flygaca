@@ -35,7 +35,12 @@ export interface PilotRankInfo {
 
 export function getPilotRank(role?: string, licenceType?: string): PilotRankInfo {
   if (role === 'instructor') {
-    return { titleKey: 'account.rankInstructor', fallbackTitle: 'Flight Instructor', stripes: 3, isInstructor: true };
+    return {
+      titleKey: 'account.rankInstructor',
+      fallbackTitle: 'Flight Instructor',
+      stripes: 3,
+      isInstructor: true,
+    };
   }
   if (licenceType === 'ATPL') {
     return { titleKey: 'account.rankCaptain', fallbackTitle: 'Captain (ATPL)', stripes: 4 };

@@ -41,7 +41,13 @@ export interface FieldErrors {
 
 export type LoginForm = ReturnType<typeof useForm<{ email: string; password: string }>>;
 export type SignupForm = ReturnType<
-  typeof useForm<{ name: string; email: string; password: string; confirmPassword: string; role: string }>
+  typeof useForm<{
+    name: string;
+    email: string;
+    password: string;
+    confirmPassword: string;
+    role: string;
+  }>
 >;
 
 export interface SignInForm {

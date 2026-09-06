@@ -1,7 +1,6 @@
 import { type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Alert } from '@/components/Alert';
-import { Button } from '@/components/ui/Button';
 import styles from './AccountPage.module.css';
 
 interface MagicLinkFormBodyProps {
@@ -11,7 +10,6 @@ interface MagicLinkFormBodyProps {
   notice?: string;
   onBack: () => void;
   onSwitchToPassword: () => void;
-  onSubmit?: (email: string) => Promise<void>;
 }
 
 /** Magic Link verification step in the redesigned flow. */
@@ -22,7 +20,6 @@ export function MagicLinkFormBody({
   notice,
   onBack,
   onSwitchToPassword,
-  onSubmit,
 }: MagicLinkFormBodyProps) {
   const { t } = useTranslation();
 

@@ -12,10 +12,7 @@ interface AccountMembershipTabProps {
   chatCredits: number;
 }
 
-export function AccountMembershipTab({
-  plan,
-  chatCredits,
-}: AccountMembershipTabProps) {
+export function AccountMembershipTab({ plan, chatCredits }: AccountMembershipTabProps) {
   const { t } = useTranslation();
   const isPro = plan !== 'free';
 
@@ -48,15 +45,36 @@ export function AccountMembershipTab({
           </div>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                fontSize: 'var(--fs-sm)',
+              }}
+            >
               <CheckCircle size={18} weight="fill" color="var(--color-success)" />
               <span>Full Saudi Civil Aviation Regulations (GACAR) Library</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                fontSize: 'var(--fs-sm)',
+              }}
+            >
               <CheckCircle size={18} weight="fill" color="var(--color-success)" />
               <span>Electronic Pilot Logbook & Currency Validity Tracker</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                fontSize: 'var(--fs-sm)',
+              }}
+            >
               <CheckCircle size={18} weight="fill" color="var(--color-success)" />
               <span>
                 {isPro
@@ -64,7 +82,14 @@ export function AccountMembershipTab({
                   : '5 free Captain Adel AI questions per day'}
               </span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-2)', fontSize: 'var(--fs-sm)' }}>
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 'var(--space-2)',
+                fontSize: 'var(--fs-sm)',
+              }}
+            >
               <CheckCircle size={18} weight="fill" color="var(--color-success)" />
               <span>AIRAC 28-day cycle updates & Saudi airport charts</span>
             </div>

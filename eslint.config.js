@@ -19,6 +19,7 @@ export default tseslint.config(
       'public',
       // `server/` is its own npm package with its own eslint config and CI job.
       'server',
+      'supabase',
       'archive',
       'src/dataconnect-generated',
     ],

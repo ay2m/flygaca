@@ -70,11 +70,7 @@ export interface SignInOAuthOptions {
  * Sign in or sign up via an OAuth provider (Google, Apple, GitHub, Discord).
  * Uses PKCE authorization code flow.
  */
-export async function signInWithOAuth({
-  provider,
-  redirectTo,
-  scopes,
-}: SignInOAuthOptions) {
+export async function signInWithOAuth({ provider, redirectTo, scopes }: SignInOAuthOptions) {
   const client = getSupabase();
   if (!client) throw new Error('supabase-not-configured');
 
@@ -178,7 +174,11 @@ export async function updatePassword(newPassword: string) {
 }
 
 /** Update user metadata in Supabase Auth. */
-export async function updateUserData(data: { displayName?: string; avatarUrl?: string; role?: string }) {
+export async function updateUserData(data: {
+  displayName?: string;
+  avatarUrl?: string;
+  role?: string;
+}) {
   const client = getSupabase();
   if (!client) throw new Error('supabase-not-configured');
 

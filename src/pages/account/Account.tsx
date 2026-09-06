@@ -22,7 +22,13 @@ import { StatusPill } from '@/components/StatusPill';
 import { Button, ButtonLink } from '@/components/ui/Button';
 import { refreshAccount, signOut, useAccount, saveProfile } from '@/lib/services/account';
 import { uiPlan } from '@/lib/services/entitlements';
-import { isAuthAvailable, isSupabaseAuthAvailable, resendEmailVerification, getCurrentUser, type AuthUser } from '@/lib/services/auth';
+import {
+  isAuthAvailable,
+  isSupabaseAuthAvailable,
+  resendEmailVerification,
+  getCurrentUser,
+  type AuthUser,
+} from '@/lib/services/auth';
 import { useNoindexMeta } from '@/hooks/usePageMeta';
 import { getAirportLabel, getPilotRank } from './aviationMeta';
 import { AvatarCustomizerModal } from './AvatarCustomizerModal';
@@ -40,8 +46,17 @@ export function Account() {
   const { t } = useTranslation();
   useNoindexMeta(t('meta.account'));
 
-  const { session, uid, emailVerified, profile, flights, records, entitlement, chatCredits, syncError } =
-    useAccount();
+  const {
+    session,
+    uid,
+    emailVerified,
+    profile,
+    flights,
+    records,
+    entitlement,
+    chatCredits,
+    syncError,
+  } = useAccount();
   const plan = uiPlan(entitlement);
   const isPro = plan !== 'free';
 
@@ -104,7 +119,9 @@ export function Account() {
   if (!session) return <AccountSignedOut />;
 
   const pilotName = profile.displayName || currentUser?.displayName || profile.email || 'Pilot';
-  const roleLabel = profile.role ? t(`account.roles.${profile.role}`, { defaultValue: profile.role }) : 'Pilot';
+  const roleLabel = profile.role
+    ? t(`account.roles.${profile.role}`, { defaultValue: profile.role })
+    : 'Pilot';
   const airportBadge = getAirportLabel(profile.homeBase);
   const rankInfo = getPilotRank(profile.role, profile.licenceType);
   const effectiveAvatarSrc = profile.avatarUrl || currentUser?.avatarUrl || '/img/captain-adel.jpg';
@@ -122,13 +139,7 @@ export function Account() {
           {/* Avatar with Command Bezel & Change Avatar Trigger */}
           <div className={styles.avatarCommandBezel}>
             <div className={styles.avatarRing}>
-              <CaptainAvatar
-                size="lg"
-                src={effectiveAvatarSrc}
-                glow
-                live
-                decorative
-              />
+              <CaptainAvatar size="lg" src={effectiveAvatarSrc} glow live decorative />
             </div>
 
             <button
@@ -215,7 +226,12 @@ export function Account() {
           <ButtonLink to="/settings" variant="clay" icon={<Gear size={16} />}>
             {t('account.settings')}
           </ButtonLink>
-          <Button type="button" variant="clay" icon={<SignOut size={16} />} onClick={() => signOut()}>
+          <Button
+            type="button"
+            variant="clay"
+            icon={<SignOut size={16} />}
+            onClick={() => signOut()}
+          >
             {t('account.signOut')}
           </Button>
         </div>

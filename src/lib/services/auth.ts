@@ -65,13 +65,22 @@ function emit(user: AuthUser | null): void {
   for (const cb of listeners) cb(user);
 }
 
-function mapSupabaseUser(user: { id: string; email?: string | null; email_confirmed_at?: string | null; user_metadata?: Record<string, unknown>; app_metadata?: Record<string, unknown> } | null): AuthUser | null {
+function mapSupabaseUser(
+  user: {
+    id: string;
+    email?: string | null;
+    email_confirmed_at?: string | null;
+    user_metadata?: Record<string, unknown>;
+    app_metadata?: Record<string, unknown>;
+  } | null,
+): AuthUser | null {
   if (!user) return null;
   const meta = user.user_metadata || {};
   return {
     uid: user.id,
     email: user.email ?? null,
-    displayName: (meta.displayName as string) || (meta.full_name as string) || (meta.name as string) || null,
+    displayName:
+      (meta.displayName as string) || (meta.full_name as string) || (meta.name as string) || null,
     emailVerified: Boolean(user.email_confirmed_at),
     avatarUrl: (meta.avatar_url as string) || (meta.picture as string) || null,
     provider: (user.app_metadata?.provider as string) || null,
@@ -85,13 +94,25 @@ function mapSupabaseError(err: unknown): Error {
   if (status === 429 || msg.includes('rate limit')) {
     return new ApiError('auth/too-many-requests', 429);
   }
-  if (msg.includes('invalid login credentials') || msg.includes('invalid credential') || msg.includes('invalid_grant')) {
+  if (
+    msg.includes('invalid login credentials') ||
+    msg.includes('invalid credential') ||
+    msg.includes('invalid_grant')
+  ) {
     return new ApiError('auth/invalid-credential', 401);
   }
-  if (msg.includes('already registered') || msg.includes('already in use') || msg.includes('user already exists')) {
+  if (
+    msg.includes('already registered') ||
+    msg.includes('already in use') ||
+    msg.includes('user already exists')
+  ) {
     return new ApiError('auth/email-already-in-use', 409);
   }
-  if (msg.includes('weak') || msg.includes('at least 6 characters') || msg.includes('password should be')) {
+  if (
+    msg.includes('weak') ||
+    msg.includes('at least 6 characters') ||
+    msg.includes('password should be')
+  ) {
     return new ApiError('auth/weak-password', 400);
   }
   if (msg.includes('user not found') || msg.includes('no user found')) {

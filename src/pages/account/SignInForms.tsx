@@ -34,15 +34,7 @@ export function BackendSignIn() {
   const [step, setStep] = useState<AuthStep>('email');
   const [email, setEmail] = useState('');
 
-  const {
-    busy,
-    errors,
-    notice,
-    loginForm,
-    signupForm,
-    runGoogle,
-    runApple,
-  } = useSignInForm();
+  const { busy, errors, notice, loginForm, signupForm, runGoogle, runApple } = useSignInForm();
 
   const handleEmailSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -264,20 +256,10 @@ export function BackendSignIn() {
 
             <div className={styles.divider}>{t('account.or')}</div>
 
-            <SignInFormBody
-              form={loginForm}
-              busy={busy}
-              errorAlert={null}
-              notice={notice}
-            />
+            <SignInFormBody form={loginForm} busy={busy} errorAlert={null} notice={notice} />
 
             <div className={styles.stepFooter}>
-              <button
-                type="button"
-                className={styles.backBtn}
-                onClick={handleBack}
-                disabled={busy}
-              >
+              <button type="button" className={styles.backBtn} onClick={handleBack} disabled={busy}>
                 ← {t('account.back') || 'Back'}
               </button>
             </div>
@@ -325,20 +307,10 @@ export function BackendSignIn() {
 
             <div className={styles.divider}>{t('account.or')}</div>
 
-            <SignUpFormBody
-              form={signupForm}
-              busy={busy}
-              errorAlert={null}
-              notice={notice}
-            />
+            <SignUpFormBody form={signupForm} busy={busy} errorAlert={null} notice={notice} />
 
             <div className={styles.stepFooter}>
-              <button
-                type="button"
-                className={styles.backBtn}
-                onClick={handleBack}
-                disabled={busy}
-              >
+              <button type="button" className={styles.backBtn} onClick={handleBack} disabled={busy}>
                 ← {t('account.back') || 'Back'}
               </button>
             </div>

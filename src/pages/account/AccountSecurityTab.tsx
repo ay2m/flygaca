@@ -75,7 +75,11 @@ export function AccountSecurityTab({ user, emailVerified }: AccountSecurityTabPr
   }
 
   function handleDelete() {
-    if (window.confirm('Are you sure you want to delete your stored pilot data? This cannot be undone.')) {
+    if (
+      window.confirm(
+        'Are you sure you want to delete your stored pilot data? This cannot be undone.',
+      )
+    ) {
       deleteAllData();
       window.location.reload();
     }
@@ -123,7 +127,9 @@ export function AccountSecurityTab({ user, emailVerified }: AccountSecurityTabPr
               <LockKey size={28} weight="duotone" color="var(--brand-hover)" />
               <div>
                 <h3 className={styles.quickDeckTitle}>{t('account.updatePassword')}</h3>
-                <p className={styles.note}>Ensure your account uses a strong, complex passphrase.</p>
+                <p className={styles.note}>
+                  Ensure your account uses a strong, complex passphrase.
+                </p>
               </div>
             </div>
           </div>
@@ -186,12 +192,7 @@ export function AccountSecurityTab({ user, emailVerified }: AccountSecurityTabPr
               Export Pilot Data (JSON)
             </Button>
 
-            <Button
-              type="button"
-              variant="clay"
-              icon={<Trash size={16} />}
-              onClick={handleDelete}
-            >
+            <Button type="button" variant="clay" icon={<Trash size={16} />} onClick={handleDelete}>
               Delete Local Cache
             </Button>
           </div>

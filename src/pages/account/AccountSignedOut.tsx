@@ -8,7 +8,7 @@ import { BrandMark } from '@/components/BrandMark';
 import { Disclaimer } from '@/components/Disclaimer';
 import { isAuthAvailable, isSupabaseAuthAvailable } from '@/lib/services/auth';
 import { AmbientGlow } from '@/components/AmbientGlow';
-import { AuthUnavailable, BackendSignIn, LocalSignIn } from './SignInForms';
+import { BackendSignIn, LocalSignIn } from './SignInForms';
 import account from './account.module.css';
 import styles from './AccountPage.module.css';
 
@@ -25,19 +25,20 @@ export function AccountSignedOut() {
   const authError = searchParams.get('auth_error');
   const signinStatus = searchParams.get('signin');
 
-  const bannerAlert = authError === 'operation-not-allowed' ? (
-    <Alert tone="error" role="alert" icon="⚠">
-      {t('account.errors.providerDisabled')}
-    </Alert>
-  ) : signinStatus === 'failed' || signinStatus === 'invalid' ? (
-    <Alert tone="error" role="alert" icon="⚠">
-      {t('account.authError')}
-    </Alert>
-  ) : signinStatus === 'link-blocked' ? (
-    <Alert tone="warning" role="alert" icon="⚠">
-      {t('account.errors.emailInUse')}
-    </Alert>
-  ) : null;
+  const bannerAlert =
+    authError === 'operation-not-allowed' ? (
+      <Alert tone="error" role="alert" icon="⚠">
+        {t('account.errors.providerDisabled')}
+      </Alert>
+    ) : signinStatus === 'failed' || signinStatus === 'invalid' ? (
+      <Alert tone="error" role="alert" icon="⚠">
+        {t('account.authError')}
+      </Alert>
+    ) : signinStatus === 'link-blocked' ? (
+      <Alert tone="warning" role="alert" icon="⚠">
+        {t('account.errors.emailInUse')}
+      </Alert>
+    ) : null;
 
   return (
     <section className={`container ${styles.splitScreenPage}`}>
@@ -60,11 +61,7 @@ export function AccountSignedOut() {
           {bannerAlert}
 
           <Card variant="raised" className={`${styles.authCard} card-clay`}>
-            {authReady ? (
-              <BackendSignIn />
-            ) : (
-              <LocalSignIn />
-            )}
+            {authReady ? <BackendSignIn /> : <LocalSignIn />}
           </Card>
 
           <div className={styles.disclaimerWrapper}>

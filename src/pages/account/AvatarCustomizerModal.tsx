@@ -29,15 +29,15 @@ export function AvatarCustomizerModal({
   const [selectedMode, setSelectedMode] = useState<'adel' | 'custom'>(
     isCurrentlyAdel ? 'adel' : 'custom',
   );
-  const [customUrl, setCustomUrl] = useState<string>(!isCurrentlyAdel ? (currentAvatarUrl ?? '') : '');
+  const [customUrl, setCustomUrl] = useState<string>(
+    !isCurrentlyAdel ? (currentAvatarUrl ?? '') : '',
+  );
   const [previewError, setPreviewError] = useState(false);
 
   if (!isOpen) return null;
 
   const activePreview =
-    selectedMode === 'adel'
-      ? OFFICIAL_ADEL_AVATAR
-      : customUrl.trim() || OFFICIAL_ADEL_AVATAR;
+    selectedMode === 'adel' ? OFFICIAL_ADEL_AVATAR : customUrl.trim() || OFFICIAL_ADEL_AVATAR;
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -111,9 +111,7 @@ export function AvatarCustomizerModal({
               />
             </div>
             <p className={styles.avatarPreviewLabel}>
-              {selectedMode === 'adel'
-                ? t('account.useAdelAvatar')
-                : t('account.customAvatar')}
+              {selectedMode === 'adel' ? t('account.useAdelAvatar') : t('account.customAvatar')}
             </p>
           </div>
 

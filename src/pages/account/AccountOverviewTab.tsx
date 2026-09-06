@@ -51,8 +51,8 @@ export function AccountOverviewTab({
   const medicalItem = currency.find((c) => c.id === 'medical');
   const medicalDays = medicalItem?.daysLeft;
 
-  let medicalStatus = t('account.valid');
-  let medicalTone: 'good' | 'warn' | 'bad' | 'neutral' = 'good';
+  let medicalStatus: string;
+  let medicalTone: 'good' | 'warn' | 'bad' | 'neutral';
   if (medicalDays !== undefined && medicalDays !== null) {
     if (medicalDays < 0) {
       medicalStatus = t('account.expired');
@@ -73,8 +73,7 @@ export function AccountOverviewTab({
   const paxDayItem = currency.find((c) => c.id === 'passenger-day');
   const paxNightItem = currency.find((c) => c.id === 'passenger-night');
   const paxStatusGood =
-    paxDayItem?.status === 'current' &&
-    (!paxNightItem || paxNightItem.status === 'current');
+    paxDayItem?.status === 'current' && (!paxNightItem || paxNightItem.status === 'current');
 
   // Flight review currency
   const bfrItem = currency.find((c) => c.id === 'flight-review');
@@ -133,22 +132,23 @@ export function AccountOverviewTab({
           <Link to="/currency" className={styles.radarMetricTile}>
             <div className={styles.radarMetricHead}>
               <span className={styles.radarMetricLabel}>{t('account.passengerCurrency')}</span>
-              <span
-                className={styles.radarBadge}
-                data-tone={paxStatusGood ? 'good' : 'warn'}
-              >
+              <span className={styles.radarBadge} data-tone={paxStatusGood ? 'good' : 'warn'}>
                 {paxStatusGood ? '✓ ' + t('account.valid') : 'Review'}
               </span>
             </div>
             <div className={styles.radarMetricSub}>
               <span>GACAR §61.57 (90 Days)</span>
-              <span>{paxDayItem?.count ? `${paxDayItem.count.have}/3 landings` : '3 landings req.'}</span>
+              <span>
+                {paxDayItem?.count ? `${paxDayItem.count.have}/3 landings` : '3 landings req.'}
+              </span>
             </div>
             <div className={styles.bentoMiniBar}>
               <div
                 className={styles.bentoMiniBarFill}
                 style={{
-                  width: paxStatusGood ? '100%' : `${Math.min(100, ((paxDayItem?.count?.have ?? 0) / 3) * 100)}%`,
+                  width: paxStatusGood
+                    ? '100%'
+                    : `${Math.min(100, ((paxDayItem?.count?.have ?? 0) / 3) * 100)}%`,
                   background: paxStatusGood ? 'var(--color-success)' : 'var(--warning)',
                 }}
               />
@@ -176,8 +176,8 @@ export function AccountOverviewTab({
                     medicalTone === 'good'
                       ? 'var(--color-success)'
                       : medicalTone === 'warn'
-                      ? 'var(--warning)'
-                      : 'var(--color-error)',
+                        ? 'var(--warning)'
+                        : 'var(--color-error)',
                 }}
               />
             </div>
@@ -188,12 +188,18 @@ export function AccountOverviewTab({
             <div className={styles.radarMetricHead}>
               <span className={styles.radarMetricLabel}>{t('account.flightReview')}</span>
               <span className={styles.radarBadge} data-tone={bfrGood ? 'good' : 'neutral'}>
-                {bfrGood ? '✓ ' + t('account.valid') : bfrItem?.daysLeft !== null && (bfrItem?.daysLeft ?? 0) < 0 ? t('account.expired') : t('account.notSet')}
+                {bfrGood
+                  ? '✓ ' + t('account.valid')
+                  : bfrItem?.daysLeft !== null && (bfrItem?.daysLeft ?? 0) < 0
+                    ? t('account.expired')
+                    : t('account.notSet')}
               </span>
             </div>
             <div className={styles.radarMetricSub}>
               <span>GACAR §61.56 (24 Mos)</span>
-              <span>{profile.lastFlightReview ? profile.lastFlightReview : t('account.notSet')}</span>
+              <span>
+                {profile.lastFlightReview ? profile.lastFlightReview : t('account.notSet')}
+              </span>
             </div>
             <div className={styles.bentoMiniBar}>
               <div
@@ -230,7 +236,10 @@ export function AccountOverviewTab({
             className={styles.bentoMiniBar}
             title={`PIC: ${picPct}% (${log.pic}h) | Night: ${nightPct}% (${log.night}h) | IFR: ${ifrPct}% (${log.ifr}h)`}
           >
-            <div className={styles.bentoMiniBarFill} style={{ width: `${Math.max(10, picPct)}%` }} />
+            <div
+              className={styles.bentoMiniBarFill}
+              style={{ width: `${Math.max(10, picPct)}%` }}
+            />
           </div>
           <div className={styles.bentoSubMetrics}>
             <span>PIC: {log.pic.toFixed(1)}h</span>
@@ -292,7 +301,11 @@ export function AccountOverviewTab({
               onChange={(e) => setAskQuery(e.target.value)}
               className={styles.quickAskInput}
             />
-            <button type="submit" className={styles.quickAskBtn} aria-label={t('account.askAdelCta')}>
+            <button
+              type="submit"
+              className={styles.quickAskBtn}
+              aria-label={t('account.askAdelCta')}
+            >
               <PaperPlaneTilt size={14} weight="fill" />
             </button>
           </form>
