@@ -46,7 +46,7 @@ export const config = {
 
   db: {
     /** Full connection string. On Cloud Run use the Cloud SQL unix socket host. */
-    url: str("DATABASE_URL"),
+    url: str("DATABASE_URL", str("POSTGRES_URL")),
     /** Max pool size — keep low, Cloud Run scales horizontally. */
     poolMax: int("DATABASE_POOL_MAX", 5),
   },

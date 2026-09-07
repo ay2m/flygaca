@@ -95,7 +95,8 @@ export async function ping(): Promise<boolean> {
   try {
     await query("SELECT 1");
     return true;
-  } catch {
+  } catch (err) {
+    console.error("ping: database query failed:", err);
     return false;
   }
 }
