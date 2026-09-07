@@ -28,6 +28,12 @@
         "source": "github",
         "repo": "obra/superpowers"
       }
+    },
+    "humanizer": {
+      "source": {
+        "source": "github",
+        "repo": "blader/humanizer"
+      }
     }
   }
 }
