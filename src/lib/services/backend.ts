@@ -70,6 +70,13 @@ interface ApiFetchOptions {
   signal?: AbortSignal;
 }
 
+type TokenGetter = () => Promise<string | null>;
+let tokenGetter: TokenGetter | null = null;
+
+export function setAuthTokenGetter(getter: TokenGetter | null): void {
+  tokenGetter = getter;
+}
+
 /**
  * Call the API and parse its JSON envelope. Throws {@link ApiError} on any
  * non-2xx, using the server's `error` code when present. Callers that must not
@@ -78,10 +85,25 @@ interface ApiFetchOptions {
 export async function apiFetch<T>(path: string, opts: ApiFetchOptions = {}): Promise<T> {
   if (!isBackendConfigured()) throw new ApiError('backend-unavailable', 0);
 
+  const headers: Record<string, string> = {};
+  if (opts.body !== undefined) {
+    headers['Content-Type'] = 'application/json';
+  }
+  if (tokenGetter) {
+    try {
+      const token = await tokenGetter();
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+    } catch {
+      // Best-effort token attachment
+    }
+  }
+
   const res = await fetch(apiUrl(path), {
     method: opts.method ?? 'GET',
     credentials: 'include',
-    headers: opts.body === undefined ? undefined : { 'Content-Type': 'application/json' },
+    headers: Object.keys(headers).length > 0 ? headers : undefined,
     body: opts.body === undefined ? undefined : JSON.stringify(opts.body),
     signal: opts.signal,
   });

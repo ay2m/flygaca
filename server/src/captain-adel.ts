@@ -14,7 +14,7 @@
  * refusal and the model is not even called, so we never emit a fabricated
  * GACAR figure. This is the server-side twin of the site-wide <Disclaimer/>.
  */
-import { genkit, z } from "genkit";
+import { z } from "zod";
 import { config } from "./config.js";
 import { getIndex, toChatSource } from "./corpus.js";
 import { buildSystem } from "./captain-adel-prompt.js";
@@ -22,11 +22,7 @@ import { modelFor } from "./model-core.js";
 import { streamChat } from "./model.js";
 import { gradeRetrieval } from "./grounding-core.js";
 import type { ChatTurn } from "./contract.js";
-
-// No model plugin. Genkit is kept only for `defineFlow` — the typed, streamable
-// flow wrapper `gateway.ts` calls — while generation goes through model.ts to a
-// configurable in-Kingdom endpoint.
-const ai = genkit({});
+import { defineFlow } from "./flow.js";
 
 /** Read a numeric tuning knob from the environment, falling back to its default. */
 function tune(name: string, fallback: number): number {
@@ -95,7 +91,7 @@ function toChatHistory(history: ChatTurn[] | undefined) {
  * Captain Adel flow. Streams token deltas (string) and returns the grounded
  * answer + sources + verdict.
  */
-export const captainAdelFlow = ai.defineFlow(
+export const captainAdelFlow = defineFlow(
   {
     name: "captainAdelFlow",
     inputSchema: INPUT_SCHEMA,

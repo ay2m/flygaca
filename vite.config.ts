@@ -27,7 +27,7 @@ function verificationMeta(env: Record<string, string>): Plugin {
 
 // https://vite.dev/config/  (test config lives in vitest.config.ts)
 export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), 'VITE_');
+  const env = loadEnv(mode, process.cwd(), ['VITE_', 'SUPABASE_']);
   // Standalone prep-app (flavor) builds — set by scripts/build-flavor.mjs. The
   // default web build resolves to `main`, whose registry entry mirrors the
   // manifest literals this file used to inline (tests/flavors.test.ts pins
@@ -35,6 +35,7 @@ export default defineConfig(({ mode }) => {
   const flavor = FLAVORS[toFlavorId(env.VITE_APP_FLAVOR) ?? 'main'];
   const isFlavorApp = flavor.id !== 'main';
   return {
+    envPrefix: ['VITE_', 'SUPABASE_'],
     // Flavor builds swap the public payload for the staged per-pack slice so
     // the service-worker precache manifest sees only that pack's data.
     publicDir: isFlavorApp ? `.flavor/${flavor.id}/public` : 'public',

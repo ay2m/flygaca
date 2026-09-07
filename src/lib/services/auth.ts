@@ -12,7 +12,7 @@
  * `calc/app/authError.ts` and its i18n keys map them unchanged.
  */
 import { isNative } from '@/lib/native/nativeBridge';
-import { isBackendConfigured, apiFetch, apiUrl, ApiError } from '@/lib/services/backend';
+import { isBackendConfigured, apiFetch, apiUrl, ApiError, setAuthTokenGetter } from '@/lib/services/backend';
 import {
   isSupabaseConfigured,
   getSupabase,
@@ -214,6 +214,9 @@ export async function getIdToken(): Promise<string | null> {
   const r = await apiFetch<{ token: string | null }>('/auth/token').catch(() => null);
   return r?.token ?? null;
 }
+
+// Automatically bind the token getter to backend apiFetch
+setAuthTokenGetter(getIdToken);
 
 /**
  * Subscribe to auth changes. Calls back with the current user as soon as the

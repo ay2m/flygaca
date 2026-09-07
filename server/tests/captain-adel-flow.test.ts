@@ -27,20 +27,17 @@ const zStub: unknown = new Proxy(function () {}, {
   apply: () => zStub,
 });
 
-vi.mock("genkit", () => ({
-  z: zStub,
-  genkit: () => ({
-    defineFlow: (
-      _cfg: unknown,
-      handler: (input: unknown, ctx: { sendChunk: (c: string) => void }) => unknown,
-    ) =>
-      Object.assign((input: unknown) => handler(input, { sendChunk: (c) => h.sent.push(c) }), {
-        stream: (input: unknown) => ({
-          stream: (async function* () {})(),
-          output: handler(input, { sendChunk: (c) => h.sent.push(c) }),
-        }),
+vi.mock("../src/flow.js", () => ({
+  defineFlow: (
+    _cfg: unknown,
+    handler: (input: unknown, ctx: { sendChunk: (c: string) => void }) => unknown,
+  ) =>
+    Object.assign((input: unknown) => handler(input, { sendChunk: (c) => h.sent.push(c) }), {
+      stream: (input: unknown) => ({
+        stream: (async function* () {})(),
+        output: handler(input, { sendChunk: (c) => h.sent.push(c) }),
       }),
-  }),
+    }),
 }));
 
 // The model client stands in for the configured model endpoint. It yields the
