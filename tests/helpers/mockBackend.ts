@@ -88,5 +88,6 @@ export function makeBackendModule(h: BackendState): Record<string, unknown> {
       h.events.push({ name, params });
       return Promise.resolve();
     },
+    setAuthTokenGetter: () => {},
   };
 }
